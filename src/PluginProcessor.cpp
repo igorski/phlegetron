@@ -1,0 +1,325 @@
+/*
+ * Copyright (c) 2024 Igor Zinken https://www.igorski.nl
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "PluginProcessor.h"
+#include "PluginEditor.h"
+
+AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesProperties()
+    #if ! JucePlugin_IsMidiEffect
+        #if ! JucePlugin_IsSynth
+        .withInput( "Input",  juce::AudioChannelSet::stereo(), true )
+        #endif
+        .withOutput( "Output", juce::AudioChannelSet::stereo(), true )
+    #endif
+    ),
+    ParameterSubscriber(),
+    parameters( *this, nullptr, "PARAMETERS", createParameterLayout()),
+    parameterListener( *this, parameters ) 
+{
+    // grab a reference to all automatable parameters and initialize the values (to their defined defaults)
+
+    distAmount = parameters.getRawParameterValue( Parameters::DIST_AMOUNT );
+    distInputLevel = parameters.getRawParameterValue( Parameters::DIST_INPUT );
+    distCutoffThreshold = parameters.getRawParameterValue( Parameters::DIST_CUT_THRESH );
+    distSquareWaveThreshold = parameters.getRawParameterValue( Parameters::DIST_SW_THRESH );
+}
+
+AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
+{
+    // nowt...
+}
+
+/* configuration */
+
+const juce::String AudioPluginAudioProcessor::getName() const
+{
+    return JucePlugin_Name;
+}
+
+bool AudioPluginAudioProcessor::isBusesLayoutSupported( const BusesLayout& layouts ) const
+{
+  #if JucePlugin_IsMidiEffect
+    juce::ignoreUnused( layouts );
+    return true;
+  #else
+    if ( layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono() &&
+         layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo()) {
+        return false;
+    }
+
+   #if ! JucePlugin_IsSynth
+    if ( layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet()) {
+        return false;
+    }
+   #endif
+
+    return true;
+  #endif
+}
+
+bool AudioPluginAudioProcessor::acceptsMidi() const
+{
+   #if JucePlugin_WantsMidiInput
+    return true;
+   #else
+    return false;
+   #endif
+}
+
+bool AudioPluginAudioProcessor::producesMidi() const
+{
+   #if JucePlugin_ProducesMidiOutput
+    return true;
+   #else
+    return false;
+   #endif
+}
+
+bool AudioPluginAudioProcessor::isMidiEffect() const
+{
+   #if JucePlugin_IsMidiEffect
+    return true;
+   #else
+    return false;
+   #endif
+}
+
+double AudioPluginAudioProcessor::getTailLengthSeconds() const
+{
+    return 0.0;
+}
+
+/* programs */
+
+int AudioPluginAudioProcessor::getNumPrograms()
+{
+    return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
+                // so this should be at least 1, even if you're not really implementing programs.
+}
+
+int AudioPluginAudioProcessor::getCurrentProgram()
+{
+    return 0;
+}
+
+void AudioPluginAudioProcessor::setCurrentProgram( int index )
+{
+    juce::ignoreUnused( index );
+}
+
+const juce::String AudioPluginAudioProcessor::getProgramName( int index )
+{
+    juce::ignoreUnused( index );
+    return {};
+}
+
+void AudioPluginAudioProcessor::changeProgramName( int index, const juce::String& newName )
+{
+    juce::ignoreUnused( index, newName );
+}
+
+/* automatable parameters */
+
+void AudioPluginAudioProcessor::updateParameters()
+{
+    fuzz->setAmount( *distAmount );
+    fuzz->setInputLevel( *distInputLevel );
+    fuzz->setCutOff( *distCutoffThreshold );
+    fuzz->setSquareWave( *distSquareWaveThreshold );
+
+    // int channelAmount = getTotalNumOutputChannels();
+ 
+    // for ( int channel = 0; channel < channelAmount; ++channel ) {
+    //     bool isOddChannel = channel % 2 == 0;
+
+
+    //     lowPassFilters [ channel ]->setCoefficients( juce::IIRCoefficients::makeLowPass ( _sampleRate, *lowBand ));
+    //     bandPassFilters[ channel ]->setCoefficients( juce::IIRCoefficients::makeBandPass( _sampleRate, *midBand, 1.0 ));
+    //     highPassFilters[ channel ]->setCoefficients( juce::IIRCoefficients::makeHighPass( _sampleRate, *hiBand ));
+    // }
+}
+
+/* resource management */
+
+void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPerBlock )
+{
+    _sampleRate = sampleRate;
+
+    // dispose previously allocated resources
+    releaseResources();
+
+    int channelAmount = getTotalNumOutputChannels();
+
+    for ( int i = 0; i < channelAmount; ++i )
+    {
+        lowPassFilters.add ( new juce::IIRFilter());
+        bandPassFilters.add( new juce::IIRFilter());
+        highPassFilters.add( new juce::IIRFilter());
+
+        lowPassFilters [ i ]->setCoefficients( juce::IIRCoefficients::makeLowPass ( sampleRate, Parameters::Config::LOW_BAND_DEF ));
+        bandPassFilters[ i ]->setCoefficients( juce::IIRCoefficients::makeBandPass( sampleRate, Parameters::Config::MID_BAND_DEF, 1.0 ));
+        highPassFilters[ i ]->setCoefficients( juce::IIRCoefficients::makeHighPass( sampleRate, Parameters::Config::HI_BAND_DEF ));
+    }
+    // bitCrusher = new BitCrusher( Parameters::Config::DISTORTION_AMT_DEF, 1.f, Parameters::Config::DISTORTION_WET_DEF );
+    fuzz = new Fuzz( *distAmount, 1.0f );
+    
+    // align values with model
+    updateParameters();
+}
+
+void AudioPluginAudioProcessor::releaseResources()
+{
+    lowPassFilters.clear();
+    bandPassFilters.clear();
+    highPassFilters.clear();
+
+    if ( fuzz != nullptr ) {
+        delete fuzz;
+        fuzz = nullptr;
+    }
+}
+
+/* rendering */
+
+void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages )
+{
+    juce::ignoreUnused( midiMessages );
+    juce::ScopedNoDenormals noDenormals;
+  
+    int channelAmount = buffer.getNumChannels();
+    int bufferSize    = buffer.getNumSamples();
+
+    /*
+    auto currentPosition = getPlayHead()->getPosition();
+
+    if ( currentPosition.hasValue() && alignWithSequencer( currentPosition )) {
+          
+    }
+    */
+
+    
+    float dryMix = 0.f;//1.f - *wetDryMix;
+    float wetMix = 1.f;//*wetDryMix;
+    
+    // Create temporary buffers for each band
+    juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
+    juce::AudioBuffer<float> midBuffer( channelAmount, bufferSize );
+    juce::AudioBuffer<float> hiBuffer ( channelAmount, bufferSize );
+
+    for ( int channel = 0; channel < channelAmount; ++channel )
+    {
+        if ( buffer.getReadPointer( channel ) == nullptr ) {
+            continue;
+        }
+
+        lowBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
+        midBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
+        hiBuffer.copyFrom  ( channel, 0, buffer, channel, 0, bufferSize );
+
+        // apply the effects
+
+        fuzz->apply( midBuffer, channel );
+
+        // apply the filtering
+
+        lowPassFilters [ channel ]->processSamples( lowBuffer.getWritePointer( channel ), bufferSize );
+        bandPassFilters[ channel ]->processSamples( midBuffer.getWritePointer( channel ), bufferSize );
+        highPassFilters[ channel ]->processSamples( hiBuffer.getWritePointer ( channel ), bufferSize );
+
+        // write the effected buffer into the output
+    
+        for ( int i = 0; i < bufferSize; ++i ) {
+            auto input = buffer.getSample( channel, i ) * dryMix;
+
+            buffer.setSample(
+                channel, i,
+                input + (
+                    lowBuffer.getSample( channel, i ) +
+                    midBuffer.getSample( channel, i ) +
+                    hiBuffer.getSample ( channel, i )
+                ) * wetMix
+            );
+        }
+    }
+}
+
+/* editor */
+
+bool AudioPluginAudioProcessor::hasEditor() const
+{
+    return true;
+}
+
+juce::AudioProcessorEditor* AudioPluginAudioProcessor::createEditor()
+{
+    return new AudioPluginAudioProcessorEditor( *this, parameters );
+}
+
+/* persistence */
+
+void AudioPluginAudioProcessor::getStateInformation( juce::MemoryBlock& destData )
+{
+    juce::MemoryOutputStream stream( destData, true );
+    parameters.state.writeToStream( stream );
+}
+
+void AudioPluginAudioProcessor::setStateInformation( const void* data, int sizeInBytes )
+{
+    juce::ValueTree tree = juce::ValueTree::readFromData( data, static_cast<unsigned long>( sizeInBytes ));
+    if ( tree.isValid()) {
+        parameters.state = tree;
+    }
+}
+
+/* runtime state */
+
+bool AudioPluginAudioProcessor::alignWithSequencer( juce::Optional<juce::AudioPlayHead::PositionInfo> positionInfo )
+{
+    bool wasPlaying = isPlaying;
+    isPlaying = positionInfo->getIsPlaying();
+
+    if ( !wasPlaying && isPlaying ) {
+        // sequencer started playback
+        int channelAmount = getTotalNumOutputChannels();
+
+        for ( int channel = 0; channel < channelAmount; ++channel ) {
+            // nowt   
+        }
+    }
+
+    bool hasChange = false;
+
+    auto curTempo = positionInfo->getBpm();
+    auto timeSig  = positionInfo->getTimeSignature();
+
+    if ( curTempo.hasValue() && !juce::approximatelyEqual( tempo, *curTempo )) {
+        tempo = *curTempo;
+        hasChange = true;
+    }
+
+    if ( timeSig.hasValue() && ( timeSigNumerator != timeSig->numerator || timeSigDenominator != timeSig->denominator )) {
+        timeSigNumerator   = timeSig->numerator;
+        timeSigDenominator = timeSig->denominator;
+
+        hasChange = true;
+    }
+    return hasChange;
+}
+
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    return new AudioPluginAudioProcessor();
+}

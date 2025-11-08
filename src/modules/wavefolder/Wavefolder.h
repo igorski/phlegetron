@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2025 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +18,16 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-class Fuzz
+class WaveFolder
 {
     public:
-        Fuzz( float input );
+        WaveFolder( float input );
 
         float getAmount();
         void setAmount( float value );
 
         float getInputLevel();
         void setInputLevel( float value );
-
-        float getCutOff();
-        void setCutOff( float value );
         
         float getThreshold();
         void setThreshold( float value );
@@ -38,8 +35,6 @@ class Fuzz
         void apply( juce::AudioBuffer<float>& buffer, int channel );
 
     private:
-        float _amount;
         float _input;
-        float _cutoffThreshold; // Below this threshold, silence the output
-        float _squareWaveThreshold; // Below this threshold, signal is converted to a square wave
+        float _threshold;
 };

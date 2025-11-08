@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2024-2025 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 // #include "modules/bitcrusher/Bitcrusher.h"
 #include "modules/fuzz/Fuzz.h"
+#include "modules/wavefolder/Wavefolder.h"
 #include "Parameters.h"
 #include "ParameterListener.h"
 #include "ParameterSubscriber.h"
@@ -68,10 +69,10 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
             // params.push_back( std::make_unique<juce::AudioParameterBool> ( Parameters::DIST_ACTIVE,   "Distortion active", false ));
-            params.push_back( std::make_unique<juce::AudioParameterFloat>( Parameters::DIST_AMOUNT, "Distortion amount", 0.f, 1.f, 0.f ));
+            params.push_back( std::make_unique<juce::AudioParameterFloat>( Parameters::DRY_WET_MIX, "Dry/wet mix", 0.f, 1.f, 1.f ));
             params.push_back( std::make_unique<juce::AudioParameterFloat>( Parameters::DIST_INPUT, "Input level", 0.f, 1.f, 1.f ));
             params.push_back( std::make_unique<juce::AudioParameterFloat>( Parameters::DIST_CUT_THRESH, "Cutoff threshold", 0.f, 1.f, Parameters::Config::DIST_CUT_THRESH_DEF ));
-            params.push_back( std::make_unique<juce::AudioParameterFloat>( Parameters::DIST_SW_THRESH, "Square wave threshold", 0.f, 1.f, Parameters::Config::DIST_SW_THRESH_DEF ));
+            params.push_back( std::make_unique<juce::AudioParameterFloat>( Parameters::DIST_THRESHOLD, "Threshold", 0.f, 1.f, Parameters::Config::DIST_THRESH_DEF ));
             
             return { params.begin(), params.end() };
         }
@@ -97,6 +98,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
         // BitCrusher* bitCrusher = nullptr;
         Fuzz* fuzz = nullptr;
+        WaveFolder* waveFolder = nullptr;
         
         double _sampleRate;
         
@@ -108,10 +110,10 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         // parameters
 
         std::atomic<float>* distActive;
-        std::atomic<float>* distAmount;
+        std::atomic<float>* dryWetMix;
         std::atomic<float>* distInputLevel;
         std::atomic<float>* distCutoffThreshold;
-        std::atomic<float>* distSquareWaveThreshold;
+        std::atomic<float>* distThreshold;
         
         //==============================================================================
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR( AudioPluginAudioProcessor )

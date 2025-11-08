@@ -45,18 +45,18 @@ class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor
 
         int scaledWidth;
         int scaledHeight;
-
+    
         static const unsigned int BACKGROUND_COLOR = 0xff444444;
         static const unsigned int HIGHLIGHT_COLOR  = 0xffD92666;
 
         /* automatable parameters */
 
         juce::ToggleButton distActiveControl;
-        juce::Slider distAmountControl;
+        juce::Slider mixControl;
         
-        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> distAmountAtt;
         std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> distActiveAtt;
- 
+        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> mixAtt;
+      
         inline std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> createControl( const juce::String& title, juce::Slider& controlElement, bool rotary )
         {
             addAndMakeVisible( controlElement );

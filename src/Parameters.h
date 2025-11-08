@@ -19,9 +19,9 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 namespace Parameters {
-    static juce::String DIST_AMOUNT     = "distAmount";
+    static juce::String DRY_WET_MIX     = "dryWetMix";
     static juce::String DIST_INPUT      = "distInput";
-    static juce::String DIST_SW_THRESH  = "squareWaveThreshold";
+    static juce::String DIST_THRESHOLD  = "distThreshold";
     static juce::String DIST_CUT_THRESH = "distCutoffThreshold"; 
 
     namespace Ranges {
@@ -39,6 +39,6 @@ namespace Parameters {
         static float HI_BAND_DEF  = 5000.f;
 
         static float DIST_CUT_THRESH_DEF = 0.02f;
-        static float DIST_SW_THRESH_DEF  = 0.1f;
+        static float DIST_THRESH_DEF     = 0.1f;
     }
 }

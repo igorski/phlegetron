@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2024-2025 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,10 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesPro
 {
     // grab a reference to all automatable parameters and initialize the values (to their defined defaults)
 
-    distAmount = parameters.getRawParameterValue( Parameters::DIST_AMOUNT );
-    distInputLevel = parameters.getRawParameterValue( Parameters::DIST_INPUT );
+    dryWetMix           = parameters.getRawParameterValue( Parameters::DRY_WET_MIX );
+    distInputLevel      = parameters.getRawParameterValue( Parameters::DIST_INPUT );
     distCutoffThreshold = parameters.getRawParameterValue( Parameters::DIST_CUT_THRESH );
-    distSquareWaveThreshold = parameters.getRawParameterValue( Parameters::DIST_SW_THRESH );
+    distThreshold       = parameters.getRawParameterValue( Parameters::DIST_THRESHOLD );
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -135,10 +135,13 @@ void AudioPluginAudioProcessor::changeProgramName( int index, const juce::String
 
 void AudioPluginAudioProcessor::updateParameters()
 {
-    fuzz->setAmount( *distAmount );
     fuzz->setInputLevel( *distInputLevel );
     fuzz->setCutOff( *distCutoffThreshold );
-    fuzz->setSquareWave( *distSquareWaveThreshold );
+    fuzz->setThreshold( *distThreshold );
+
+    waveFolder->setInputLevel( *distInputLevel );
+    // waveFolder->setCutOff( *distCutoffThreshold );
+    waveFolder->setThreshold( *distThreshold );
 
     // int channelAmount = getTotalNumOutputChannels();
  
@@ -156,6 +159,8 @@ void AudioPluginAudioProcessor::updateParameters()
 
 void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPerBlock )
 {
+    juce::ignoreUnused( samplesPerBlock );
+    
     _sampleRate = sampleRate;
 
     // dispose previously allocated resources
@@ -174,7 +179,8 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
         highPassFilters[ i ]->setCoefficients( juce::IIRCoefficients::makeHighPass( sampleRate, Parameters::Config::HI_BAND_DEF ));
     }
     // bitCrusher = new BitCrusher( Parameters::Config::DISTORTION_AMT_DEF, 1.f, Parameters::Config::DISTORTION_WET_DEF );
-    fuzz = new Fuzz( *distAmount, 1.0f );
+    fuzz = new Fuzz( 1.0f );
+    waveFolder = new WaveFolder( 1.0f );
     
     // align values with model
     updateParameters();
@@ -189,6 +195,11 @@ void AudioPluginAudioProcessor::releaseResources()
     if ( fuzz != nullptr ) {
         delete fuzz;
         fuzz = nullptr;
+    }
+
+    if ( waveFolder != nullptr ) {
+        delete waveFolder;
+        waveFolder = nullptr;
     }
 }
 
@@ -211,8 +222,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     */
 
     
-    float dryMix = 0.f;//1.f - *wetDryMix;
-    float wetMix = 1.f;//*wetDryMix;
+    float dryMix = 1.f - *dryWetMix;
+    float wetMix = *dryWetMix;
     
     // Create temporary buffers for each band
     juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
@@ -231,7 +242,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
         // apply the effects
 
-        fuzz->apply( midBuffer, channel );
+        // fuzz->apply( midBuffer, channel );
+        waveFolder->apply( midBuffer, channel );
 
         // apply the filtering
 

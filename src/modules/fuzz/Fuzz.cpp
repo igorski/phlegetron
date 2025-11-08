@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2024-2025 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,12 +19,13 @@
 
 // constructor
 
-Fuzz::Fuzz( float amount, float input )
+Fuzz::Fuzz( float input )
 {
-    setAmount( amount );
     setInputLevel( input );
     setCutOff( Parameters::Config::DIST_CUT_THRESH_DEF );
-    setSquareWave( Parameters::Config::DIST_SW_THRESH_DEF );
+    setThreshold( Parameters::Config::DIST_THRESH_DEF );
+
+    _amount = 10.f; // provide clipping effect to the input
 }
 
 /* public methods */
@@ -65,7 +66,7 @@ float Fuzz::getAmount()
 
 void Fuzz::setAmount( float value )
 {
-    _amount     = value;
+    _amount = value;
 }
 
 float Fuzz::getInputLevel()
@@ -89,22 +90,12 @@ void Fuzz::setCutOff( float value )
 }
 
 
-float Fuzz::getSquareWave()
+float Fuzz::getThreshold()
 {
     return _squareWaveThreshold;
 }
 
-void Fuzz::setSquareWave( float value )
+void Fuzz::setThreshold( float value )
 {
     _squareWaveThreshold = value;
-}
-
-float Fuzz::getLevel()
-{
-    return _level;
-}
-
-void Fuzz::setLevel( float value )
-{
-    _level = value;
 }

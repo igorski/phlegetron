@@ -23,7 +23,7 @@
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor( AudioPluginAudioProcessor& p, juce::AudioProcessorValueTreeState& state )
     : AudioProcessorEditor( &p ), parameters( state )
 {
-    distAmountAtt = createControl( Parameters::DIST_AMOUNT, distAmountControl, true );
+    mixAtt = createControl( Parameters::DRY_WET_MIX, mixControl, true );
 
     scaledWidth  = static_cast<int>( ceil( WIDTH / 2 ));
     scaledHeight = static_cast<int>( ceil( HEIGHT / 2 ));

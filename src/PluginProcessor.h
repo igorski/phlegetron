@@ -98,6 +98,16 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
         Fuzz* fuzz = nullptr;
         WaveFolder* waveFolder = nullptr;
+
+        // FFT
+
+        struct ChannelState
+        {
+            std::vector<float> inputBuffer;
+            std::vector<float> outputBuffer;
+            int writePos = 0;
+            bool initialised = false;
+        };
         
         double _sampleRate;
         

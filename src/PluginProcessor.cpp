@@ -212,13 +212,15 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     int channelAmount = buffer.getNumChannels();
     int bufferSize    = buffer.getNumSamples();
     
-    float dryMix = 1.f - *dryWetMix;
-    float wetMix = *dryWetMix;
+    float dryMix  = 1.f - *dryWetMix;
+    float wetMix  = *dryWetMix;
+    bool blendDry = dryMix > 0.f;
     
     // // Create temporary buffers for each band
     // juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
     // juce::AudioBuffer<float> midBuffer( channelAmount, bufferSize );
     // juce::AudioBuffer<float> hiBuffer ( channelAmount, bufferSize );
+    juce::AudioBuffer<float> inBuffer( channelAmount, bufferSize );
 
     // Basic parameters
     const double sampleRate = getSampleRate();
@@ -245,8 +247,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         if ( buffer.getReadPointer( channel ) == nullptr ) {
             continue;
         }
-        /*
 
+        /*
         lowBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
         midBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
         hiBuffer.copyFrom  ( channel, 0, buffer, channel, 0, bufferSize );
@@ -279,22 +281,20 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         */
         auto* channelData = buffer.getWritePointer( channel );
 
-        // Static state buffers per channel
-        struct ChannelState
-        {
-            std::vector<float> inputBuffer;
-            std::vector<float> outputBuffer;
-            int writePos = 0;
-            bool initialised = false;
-        };
-        static std::array<ChannelState, 2> state;
+        // copy the dry signal at its blend value
 
-        auto& st = state[ channel ];
-        if (!st.initialised)
-        {
-            st.inputBuffer.assign(fftSize, 0.0f);
-            st.outputBuffer.assign(fftSize, 0.0f);
-            st.initialised = true;
+        if ( blendDry ) {
+            for ( int i = 0; i < bufferSize; ++i ) {
+                inBuffer.setSample( channel, i, channelData[ i ] * dryMix );
+            }
+        }
+        static std::array<ChannelState, 2> channelStates;
+
+        auto& channelState = channelStates[ channel ];
+        if ( !channelState.initialised ) {
+            channelState.inputBuffer.assign ( fftSize, 0.0f );
+            channelState.outputBuffer.assign( fftSize, 0.0f );
+            channelState.initialised = true;
         }
 
         int samplesProcessed = 0;
@@ -303,16 +303,16 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             // Write new input into circular inputBuffer
             const int samplesToCopy = std::min(hopSize, bufferSize - samplesProcessed);
             std::memmove(
-                st.inputBuffer.data(), st.inputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
+                channelState.inputBuffer.data(), channelState.inputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
             );
             std::memcpy(
-                st.inputBuffer.data() + ( fftSize - hopSize ), channelData + samplesProcessed, samplesToCopy * sizeof( float )
+                channelState.inputBuffer.data() + ( fftSize - hopSize ), channelData + samplesProcessed, samplesToCopy * sizeof( float )
             );
 
             // --- Prepare FFT input with window ---
             std::vector<float> fftTime( fftSize * 2, 0.0f );
             for ( int i = 0; i < fftSize; ++i ) {
-                fftTime[ i ] = st.inputBuffer[ i ] * window[ i ];
+                fftTime[ i ] = channelState.inputBuffer[ i ] * window[ i ];
             }
             // --- Forward FFT ---
             fft.performRealOnlyForwardTransform( fftTime.data());
@@ -363,19 +363,25 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
             // Sum and window
             for ( int i = 0; i < fftSize; ++i ) {
-                st.outputBuffer[ i ] += ( tempA[ i ] + tempB[ i ]) * window[ i ];
+                channelState.outputBuffer[ i ] += ( tempA[ i ] + tempB[ i ]) * window[ i ];
             }
 
             // --- Write hopSize samples to output ---
             for ( int i = 0; i < hopSize && ( samplesProcessed + i < bufferSize ); ++i ) {
-                channelData[ samplesProcessed + i ] = st.outputBuffer[ i ];
+                auto sampleIndex    = samplesProcessed + i;
+                auto effectedSample = channelState.outputBuffer[ i ] * wetMix;
+                if ( blendDry ) {
+                    channelData[ sampleIndex ] += effectedSample;
+                } else {
+                    channelData[ sampleIndex ] = effectedSample;
+                }
             }
 
             // Shift output buffer for next overlap
             std::memmove(
-                st.outputBuffer.data(), st.outputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
+                channelState.outputBuffer.data(), channelState.outputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
             );
-            std::fill( st.outputBuffer.begin() + ( fftSize - hopSize ), st.outputBuffer.end(), 0.0f );
+            std::fill( channelState.outputBuffer.begin() + ( fftSize - hopSize ), channelState.outputBuffer.end(), 0.0f );
 
             samplesProcessed += hopSize;
         }

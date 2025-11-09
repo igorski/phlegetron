@@ -30,11 +30,8 @@ Fuzz::Fuzz( float input )
 
 /* public methods */
 
-void Fuzz::apply( juce::AudioBuffer<float>& buffer, int channel )
+void Fuzz::apply( float* channelData, int bufferSize )
 {
-    auto* channelData = buffer.getWritePointer( channel );
-    int bufferSize    = buffer.getNumSamples();
-
     for ( int i = 0; i < bufferSize; ++i )
     {
         float inputSample = channelData[ i ] * _input;

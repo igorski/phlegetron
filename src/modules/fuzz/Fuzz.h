@@ -35,7 +35,7 @@ class Fuzz
         float getThreshold();
         void setThreshold( float value );
         
-        void apply( juce::AudioBuffer<float>& buffer, int channel );
+        void apply( float* channelData, int bufferSize );
 
     private:
         float _amount;

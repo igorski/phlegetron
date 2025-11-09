@@ -17,7 +17,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-// #include "modules/bitcrusher/Bitcrusher.h"
+#include <juce_dsp/juce_dsp.h>
 #include "modules/fuzz/Fuzz.h"
 #include "modules/wavefolder/Wavefolder.h"
 #include "Parameters.h"
@@ -96,7 +96,6 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         juce::OwnedArray<juce::IIRFilter> bandPassFilters;
         juce::OwnedArray<juce::IIRFilter> highPassFilters;
 
-        // BitCrusher* bitCrusher = nullptr;
         Fuzz* fuzz = nullptr;
         WaveFolder* waveFolder = nullptr;
         

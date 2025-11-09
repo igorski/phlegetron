@@ -178,7 +178,6 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
         bandPassFilters[ i ]->setCoefficients( juce::IIRCoefficients::makeBandPass( sampleRate, Parameters::Config::MID_BAND_DEF, 1.0 ));
         highPassFilters[ i ]->setCoefficients( juce::IIRCoefficients::makeHighPass( sampleRate, Parameters::Config::HI_BAND_DEF ));
     }
-    // bitCrusher = new BitCrusher( Parameters::Config::DISTORTION_AMT_DEF, 1.f, Parameters::Config::DISTORTION_WET_DEF );
     fuzz = new Fuzz( 1.0f );
     waveFolder = new WaveFolder( 1.0f );
     
@@ -212,29 +211,41 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
   
     int channelAmount = buffer.getNumChannels();
     int bufferSize    = buffer.getNumSamples();
-
-    /*
-    auto currentPosition = getPlayHead()->getPosition();
-
-    if ( currentPosition.hasValue() && alignWithSequencer( currentPosition )) {
-          
-    }
-    */
-
     
     float dryMix = 1.f - *dryWetMix;
     float wetMix = *dryWetMix;
     
-    // Create temporary buffers for each band
-    juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
-    juce::AudioBuffer<float> midBuffer( channelAmount, bufferSize );
-    juce::AudioBuffer<float> hiBuffer ( channelAmount, bufferSize );
+    // // Create temporary buffers for each band
+    // juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
+    // juce::AudioBuffer<float> midBuffer( channelAmount, bufferSize );
+    // juce::AudioBuffer<float> hiBuffer ( channelAmount, bufferSize );
+
+    // Basic parameters
+    const double sampleRate = getSampleRate();
+    const float baseFreq = 110.0f;
+    const int fftOrder = 11; // 2048-point FFT
+    const int fftSize  = 1 << fftOrder;
+    constexpr int hopSize  = fftSize / 2;
+
+    static juce::dsp::FFT fft( fftOrder );
+
+    // Static objects to avoid reallocations
+    static std::vector<float> window(fftSize);
+    static bool windowInit = false;
+    if ( !windowInit )
+    {
+        for ( int n = 0; n < fftSize; ++n ) {
+            window[ n ] = 0.5f - 0.5f * std::cos( 2.0 * juce::MathConstants<double>::pi * n / fftSize );
+        }
+        windowInit = true;
+    }
 
     for ( int channel = 0; channel < channelAmount; ++channel )
     {
         if ( buffer.getReadPointer( channel ) == nullptr ) {
             continue;
         }
+        /*
 
         lowBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
         midBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
@@ -265,6 +276,109 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                 ) * wetMix
             );
         }
+        */
+        auto* channelData = buffer.getWritePointer( channel );
+
+        // Static state buffers per channel
+        struct ChannelState
+        {
+            std::vector<float> inputBuffer;
+            std::vector<float> outputBuffer;
+            int writePos = 0;
+            bool initialised = false;
+        };
+        static std::array<ChannelState, 2> state;
+
+        auto& st = state[ channel ];
+        if (!st.initialised)
+        {
+            st.inputBuffer.assign(fftSize, 0.0f);
+            st.outputBuffer.assign(fftSize, 0.0f);
+            st.initialised = true;
+        }
+
+        int samplesProcessed = 0;
+        while ( samplesProcessed < bufferSize )
+        {
+            // Write new input into circular inputBuffer
+            const int samplesToCopy = std::min(hopSize, bufferSize - samplesProcessed);
+            std::memmove(
+                st.inputBuffer.data(), st.inputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
+            );
+            std::memcpy(
+                st.inputBuffer.data() + ( fftSize - hopSize ), channelData + samplesProcessed, samplesToCopy * sizeof( float )
+            );
+
+            // --- Prepare FFT input with window ---
+            std::vector<float> fftTime( fftSize * 2, 0.0f );
+            for ( int i = 0; i < fftSize; ++i ) {
+                fftTime[ i ] = st.inputBuffer[ i ] * window[ i ];
+            }
+            // --- Forward FFT ---
+            fft.performRealOnlyForwardTransform( fftTime.data());
+
+            // Convert to complex
+            std::vector<std::complex<float>> spec( fftSize / 2 );
+            for ( int i = 0; i < fftSize / 2; ++i ) {
+                spec[ i ] = { fftTime[ 2 * i ], fftTime[ 2 * i + 1 ]};
+            }
+            // --- Split spectrum by harmonic proximity ---
+            std::vector<std::complex<float>> specA( fftSize / 2 ), specB( fftSize / 2 );
+            for ( int bin = 0; bin < fftSize / 2; ++bin )
+            {
+                float freq = bin * ( float ) sampleRate / fftSize;
+                bool harmonic = false;
+                for ( int n = 1; n <= 12; ++n ) {
+                    float h = n * baseFreq;
+                    if ( std::abs( freq - h ) < h * 0.03f ) {
+                        harmonic = true;
+                        break;
+                    }
+                }
+                if ( harmonic ) {
+                    specA[ bin ] = spec[ bin ];
+                } else {
+                    specB[ bin ] = spec[ bin ];
+                }
+            }
+
+            auto iFFT = [&](const std::vector<std::complex<float>>& src,
+                            std::vector<float>& dst)
+            {
+                for ( int i = 0; i < fftSize / 2; ++i ) {
+                    dst[ 2 * i ]     = src[ i ].real();
+                    dst[ 2 * i + 1 ] = src[ i ].imag();
+                }
+                fft.performRealOnlyInverseTransform( dst.data() );
+            };
+
+            // --- iFFT and OLA accumulate ---
+            std::vector<float> tempA( fftSize * 2, 0.0f ), tempB( fftSize * 2, 0.0f );
+            iFFT( specA, tempA );
+            iFFT( specB, tempB );
+
+            // apply the distortion on the split buffers
+            fuzz->apply( tempA.data(), tempA.size() );
+            waveFolder->apply( tempB.data(), tempB.size() );
+
+            // Sum and window
+            for ( int i = 0; i < fftSize; ++i ) {
+                st.outputBuffer[ i ] += ( tempA[ i ] + tempB[ i ]) * window[ i ];
+            }
+
+            // --- Write hopSize samples to output ---
+            for ( int i = 0; i < hopSize && ( samplesProcessed + i < bufferSize ); ++i ) {
+                channelData[ samplesProcessed + i ] = st.outputBuffer[ i ];
+            }
+
+            // Shift output buffer for next overlap
+            std::memmove(
+                st.outputBuffer.data(), st.outputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
+            );
+            std::fill( st.outputBuffer.begin() + ( fftSize - hopSize ), st.outputBuffer.end(), 0.0f );
+
+            samplesProcessed += hopSize;
+        }
     }
 }
 
@@ -290,7 +404,7 @@ void AudioPluginAudioProcessor::getStateInformation( juce::MemoryBlock& destData
 
 void AudioPluginAudioProcessor::setStateInformation( const void* data, int sizeInBytes )
 {
-    juce::ValueTree tree = juce::ValueTree::readFromData( data, static_cast<unsigned long>( sizeInBytes ));
+    juce::ValueTree tree = juce::ValueTree::readFromData( data, static_cast<int>( sizeInBytes ));
     if ( tree.isValid()) {
         parameters.state = tree;
     }

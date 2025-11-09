@@ -27,11 +27,8 @@ WaveFolder::WaveFolder( float input )
 
 /* public methods */
 
-void WaveFolder::apply( juce::AudioBuffer<float>& buffer, int channel )
+void WaveFolder::apply( float* channelData, int bufferSize )
 {
-    auto* channelData = buffer.getWritePointer( channel );
-    int bufferSize    = buffer.getNumSamples();
-
     float gain = _input * 10.f;
 
     for ( int i = 0; i < bufferSize; ++i )

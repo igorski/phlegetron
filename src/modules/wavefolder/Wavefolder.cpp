@@ -27,7 +27,7 @@ WaveFolder::WaveFolder( float input )
 
 /* public methods */
 
-void WaveFolder::apply( float* channelData, int bufferSize )
+void WaveFolder::apply( float* channelData, unsigned long bufferSize )
 {
     float gain = _input * 10.f;
 

@@ -30,7 +30,7 @@ Fuzz::Fuzz( float input )
 
 /* public methods */
 
-void Fuzz::apply( float* channelData, int bufferSize )
+void Fuzz::apply( float* channelData, unsigned long bufferSize )
 {
     for ( int i = 0; i < bufferSize; ++i )
     {

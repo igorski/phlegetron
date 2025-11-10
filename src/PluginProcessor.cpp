@@ -220,14 +220,14 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     // juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
     // juce::AudioBuffer<float> midBuffer( channelAmount, bufferSize );
     // juce::AudioBuffer<float> hiBuffer ( channelAmount, bufferSize );
-    juce::AudioBuffer<float> inBuffer( channelAmount, bufferSize );
+    std::vector<float> inBuffer( static_cast<unsigned long>( bufferSize ));
 
     // Basic parameters
     const double sampleRate = getSampleRate();
-    const float baseFreq = 110.0f;
-    const int fftOrder = 11; // 2048-point FFT
-    const int fftSize  = 1 << fftOrder;
-    constexpr int hopSize  = fftSize / 2;
+    const float baseFreq  = 110.0f;
+    const int fftOrder    = 11; // 2048-point FFT
+    const int fftSize     = 1 << fftOrder;
+    constexpr int hopSize = fftSize / 2;
 
     static juce::dsp::FFT fft( fftOrder );
 
@@ -236,8 +236,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     static bool windowInit = false;
     if ( !windowInit )
     {
-        for ( int n = 0; n < fftSize; ++n ) {
-            window[ n ] = 0.5f - 0.5f * std::cos( 2.0 * juce::MathConstants<double>::pi * n / fftSize );
+        for ( size_t n = 0; n < fftSize; ++n ) {
+            window[ n ] = 0.5f - 0.5f * std::cos( 2.f * juce::MathConstants<float>::pi * n / fftSize );
         }
         windowInit = true;
     }
@@ -284,13 +284,13 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         // copy the dry signal at its blend value
 
         if ( blendDry ) {
-            for ( int i = 0; i < bufferSize; ++i ) {
-                inBuffer.setSample( channel, i, channelData[ i ] * dryMix );
+            for ( size_t i = 0; i < static_cast<unsigned long>( bufferSize ); ++i ) {
+                inBuffer[ i ] = channelData[ i ] * dryMix;
             }
         }
         static std::array<ChannelState, 2> channelStates;
 
-        auto& channelState = channelStates[ channel ];
+        auto& channelState = channelStates[ static_cast<unsigned long>( channel )];
         if ( !channelState.initialised ) {
             channelState.inputBuffer.assign ( fftSize, 0.0f );
             channelState.outputBuffer.assign( fftSize, 0.0f );
@@ -301,17 +301,17 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         while ( samplesProcessed < bufferSize )
         {
             // Write new input into circular inputBuffer
-            const int samplesToCopy = std::min(hopSize, bufferSize - samplesProcessed);
+            const int samplesToCopy = std::min( hopSize, bufferSize - samplesProcessed );
             std::memmove(
                 channelState.inputBuffer.data(), channelState.inputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
             );
             std::memcpy(
-                channelState.inputBuffer.data() + ( fftSize - hopSize ), channelData + samplesProcessed, samplesToCopy * sizeof( float )
+                channelState.inputBuffer.data() + ( fftSize - hopSize ), channelData + samplesProcessed, static_cast<unsigned long>( samplesToCopy ) * sizeof( float )
             );
 
             // --- Prepare FFT input with window ---
             std::vector<float> fftTime( fftSize * 2, 0.0f );
-            for ( int i = 0; i < fftSize; ++i ) {
+            for ( size_t i = 0; i < fftSize; ++i ) {
                 fftTime[ i ] = channelState.inputBuffer[ i ] * window[ i ];
             }
             // --- Forward FFT ---
@@ -319,12 +319,12 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
             // Convert to complex
             std::vector<std::complex<float>> spec( fftSize / 2 );
-            for ( int i = 0; i < fftSize / 2; ++i ) {
+            for ( size_t i = 0; i < fftSize / 2; ++i ) {
                 spec[ i ] = { fftTime[ 2 * i ], fftTime[ 2 * i + 1 ]};
             }
             // --- Split spectrum by harmonic proximity ---
             std::vector<std::complex<float>> specA( fftSize / 2 ), specB( fftSize / 2 );
-            for ( int bin = 0; bin < fftSize / 2; ++bin )
+            for ( size_t bin = 0; bin < fftSize / 2; ++bin )
             {
                 float freq = bin * ( float ) sampleRate / fftSize;
                 bool harmonic = false;
@@ -345,7 +345,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             auto iFFT = [&](const std::vector<std::complex<float>>& src,
                             std::vector<float>& dst)
             {
-                for ( int i = 0; i < fftSize / 2; ++i ) {
+                for ( size_t i = 0; i < fftSize / 2; ++i ) {
                     dst[ 2 * i ]     = src[ i ].real();
                     dst[ 2 * i + 1 ] = src[ i ].imag();
                 }
@@ -362,19 +362,13 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             waveFolder->apply( tempB.data(), tempB.size() );
 
             // Sum and window
-            for ( int i = 0; i < fftSize; ++i ) {
+            for ( size_t i = 0; i < fftSize; ++i ) {
                 channelState.outputBuffer[ i ] += ( tempA[ i ] + tempB[ i ]) * window[ i ];
             }
 
             // --- Write hopSize samples to output ---
             for ( int i = 0; i < hopSize && ( samplesProcessed + i < bufferSize ); ++i ) {
-                auto sampleIndex    = samplesProcessed + i;
-                auto effectedSample = channelState.outputBuffer[ i ] * wetMix;
-                if ( blendDry ) {
-                    channelData[ sampleIndex ] += effectedSample;
-                } else {
-                    channelData[ sampleIndex ] = effectedSample;
-                }
+                channelData[ samplesProcessed + i ] = channelState.outputBuffer[ static_cast<unsigned long>( i )] * wetMix;
             }
 
             // Shift output buffer for next overlap
@@ -384,6 +378,12 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             std::fill( channelState.outputBuffer.begin() + ( fftSize - hopSize ), channelState.outputBuffer.end(), 0.0f );
 
             samplesProcessed += hopSize;
+        }
+
+        if ( blendDry ) {
+            for ( size_t i = 0; i < static_cast<unsigned long>( bufferSize ); ++i ) {
+                channelData[ i ] += inBuffer[ i ];
+            }
         }
     }
 }
@@ -410,7 +410,7 @@ void AudioPluginAudioProcessor::getStateInformation( juce::MemoryBlock& destData
 
 void AudioPluginAudioProcessor::setStateInformation( const void* data, int sizeInBytes )
 {
-    juce::ValueTree tree = juce::ValueTree::readFromData( data, static_cast<int>( sizeInBytes ));
+    juce::ValueTree tree = juce::ValueTree::readFromData( data, static_cast<unsigned long>( sizeInBytes ));
     if ( tree.isValid()) {
         parameters.state = tree;
     }

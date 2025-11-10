@@ -32,7 +32,7 @@ class WaveFolder
         float getThreshold();
         void setThreshold( float value );
         
-        void apply( float* channelData, int bufferSize );
+        void apply( float* channelData, unsigned long bufferSize );
 
     private:
         float _input;

@@ -174,7 +174,6 @@ void AudioPluginAudioProcessor::updateParameters()
     int channelAmount = getTotalNumOutputChannels();
  
     for ( int channel = 0; channel < channelAmount; ++channel ) {
-        // @todo check freq split
         lowPassFilters [ channel ]->setCoefficients( juce::IIRCoefficients::makeLowPass ( _sampleRate, *splitFreq ));
         highPassFilters[ channel ]->setCoefficients( juce::IIRCoefficients::makeHighPass( _sampleRate, *splitFreq ));
     }
@@ -198,7 +197,6 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
         lowPassFilters.add ( new juce::IIRFilter());
         highPassFilters.add( new juce::IIRFilter());
 
-        // @todo check split freq def
         lowPassFilters [ i ]->setCoefficients( juce::IIRCoefficients::makeLowPass ( sampleRate, Parameters::Config::SPLIT_FREQ_DEF ));
         highPassFilters[ i ]->setCoefficients( juce::IIRCoefficients::makeHighPass( sampleRate, Parameters::Config::SPLIT_FREQ_DEF ));
     }
@@ -227,12 +225,6 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     float wetMix  = *dryWetMix;
     bool blendDry = dryMix > 0.f;
 
-    // Create temporary buffers for each band and combined input
-
-    juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
-    juce::AudioBuffer<float> highBuffer ( channelAmount, bufferSize );
-    std::vector<float> inBuffer( static_cast<unsigned long>( bufferSize ));
-
     const int fftOrder    = 11; // 2048-point FFT
     const int fftSize     = 1 << fftOrder;
     constexpr int hopSize = fftSize / 2;
@@ -240,7 +232,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
     static juce::dsp::FFT fft( fftOrder );
 
-    // Static objects to avoid reallocations
+    // these are static as a cheap way to avoid allocation overhead
+
     static std::vector<float> window( fftSize );
     static bool windowInit = false;
     if ( !windowInit )
@@ -263,6 +256,9 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         // process mode 1: EQ based split
 
         if ( splitMode == Parameters::SplitMode::EQ ) {
+            juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
+            juce::AudioBuffer<float> highBuffer( channelAmount, bufferSize );
+    
             lowBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
             highBuffer.copyFrom( channel, 0, buffer, channel, 0, bufferSize );
 
@@ -295,6 +291,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         else {
             // process mode 2: harmonic bin splitting
 
+            std::vector<float> inBuffer( static_cast<unsigned long>( bufferSize ));
+
             if ( blendDry ) {
                 // copy the dry signal at its blend value
                 for ( size_t i = 0; i < static_cast<unsigned long>( bufferSize ); ++i ) {
@@ -323,20 +321,23 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                     channelState.inputBuffer.data() + ( fftSize - hopSize ), channelData + samplesProcessed, static_cast<unsigned long>( samplesToCopy ) * sizeof( float )
                 );
 
-                // --- Prepare FFT input with window ---
+                // apply FFT
+
                 std::vector<float> fftTime( fftSize * 2, 0.0f );
                 for ( size_t i = 0; i < fftSize; ++i ) {
                     fftTime[ i ] = channelState.inputBuffer[ i ] * window[ i ];
                 }
-                // --- Forward FFT ---
                 fft.performRealOnlyForwardTransform( fftTime.data());
 
-                // Convert to complex
+                // convert to complex
+                
                 std::vector<std::complex<float>> spec( fftSize / 2 );
                 for ( size_t i = 0; i < fftSize / 2; ++i ) {
                     spec[ i ] = { fftTime[ 2 * i ], fftTime[ 2 * i + 1 ]};
                 }
-                // --- Split spectrum by harmonic proximity ---
+
+                // split spectrum by harmonic proximity
+                
                 std::vector<std::complex<float>> specA( fftSize / 2 ), specB( fftSize / 2 );
                 for ( size_t bin = 0; bin < fftSize / 2; ++bin )
                 {
@@ -365,24 +366,28 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                     fft.performRealOnlyInverseTransform( dst.data() );
                 };
 
-                // --- iFFT and OLA accumulate ---
+                // inverse FFT and OLA accumulate
+
                 std::vector<float> tempA( fftSize * 2, 0.0f ), tempB( fftSize * 2, 0.0f );
                 iFFT( specA, tempA );
                 iFFT( specB, tempB );
 
                 applyDistortion( tempA.data(), tempB.data(), tempA.size(), tempB.size() );
 
-                // Sum and window
+                // sum and window
+
                 for ( size_t i = 0; i < fftSize; ++i ) {
                     channelState.outputBuffer[ i ] += ( ATTENUATION_FACTOR * ( tempA[ i ] + tempB[ i ])) * window[ i ];
                 }
 
-                // --- Write hopSize samples to output ---
+                // write samples to output (for the hopSize)
+
                 for ( int i = 0; i < hopSize && ( samplesProcessed + i < bufferSize ); ++i ) {
                     channelData[ samplesProcessed + i ] = channelState.outputBuffer[ static_cast<unsigned long>( i )] * wetMix;
                 }
 
-                // Shift output buffer for next overlap
+                // shift output buffer for next overlap
+
                 std::memmove(
                     channelState.outputBuffer.data(), channelState.outputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
                 );

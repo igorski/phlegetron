@@ -56,7 +56,7 @@ void AudioPluginAudioProcessorEditor::parameterChanged( const juce::String& id, 
 
 void AudioPluginAudioProcessorEditor::handleSplitState( bool splitEnabled )
 {
-    // @todo test code, implement final design and business logic
+    // @todo this is test code, implement final design and business logic
     splitFreqControl.setEnabled( splitEnabled );
     // Optional: grey out visually
     // splitFreqControl.setAlpha( splitEnabled ? 1.0f : 0.4f );

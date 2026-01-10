@@ -19,7 +19,7 @@
 #include "PluginProcessor.h"
 
 //==============================================================================
-class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor
+class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor, private juce::AudioProcessorValueTreeState::Listener
 {
     const int WIDTH  = 1441;
     const int HEIGHT = 830;
@@ -49,13 +49,19 @@ class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor
         static const unsigned int BACKGROUND_COLOR = 0xff444444;
         static const unsigned int HIGHLIGHT_COLOR  = 0xffD92666;
 
-        /* automatable parameters */
+        AudioPluginAudioProcessor& audioProcessor;
 
-        juce::ToggleButton distActiveControl;
-        juce::Slider mixControl;
+        /* parameter listeners */
+        void parameterChanged( const juce::String& parameterID, float newValue ) override;
+        void handleSplitState( bool splitEnabled );
+
+        /* controllable parameters */
+
+        juce::ToggleButton splitEnabledControl;
+        juce::Slider splitFreqControl;
         
-        std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> distActiveAtt;
-        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> mixAtt;
+        std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> splitEnabledAtt;
+        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> splitFreqAtt;
       
         inline std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> createControl( const juce::String& title, juce::Slider& controlElement, bool rotary )
         {

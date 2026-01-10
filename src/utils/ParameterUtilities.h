@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,25 +16,9 @@
  */
 #pragma once
 
-#include <juce_audio_processors/juce_audio_processors.h>
-
-class WaveFolder
-{
+class ParameterUtilities {
     public:
-        WaveFolder();
-
-        float getAmount();
-        void setAmount( float value );
-
-        float getInputLevel();
-        void setInputLevel( float value );
-        
-        float getThreshold();
-        void setThreshold( float value );
-        
-        void apply( float* channelData, unsigned long bufferSize );
-
-    private:
-        float _input;
-        float _threshold;
+        static inline bool floatToBool( const float value ) {
+            return value >= 0.5f;
+        }
 };

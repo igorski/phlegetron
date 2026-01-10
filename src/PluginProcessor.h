@@ -20,6 +20,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include "modules/fuzz/Fuzz.h"
 #include "modules/wavefolder/Wavefolder.h"
+#include "utils/ParameterUtilities.h"
 #include "Parameters.h"
 #include "ParameterListener.h"
 #include "ParameterSubscriber.h"
@@ -172,14 +173,10 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         std::atomic<float>* hiDistThreshold;
         std::atomic<float>* hiDistCutoffThreshold;
 
-        inline bool floatToBool( const float value ) {
-            return value >= 0.5f;
-        }
-
         inline void applyDistortion(
             float* lowChannelData, float* highChannelData, unsigned long lowChannelSize, unsigned long highChannelSize
         ) {
-            bool splitProcessing = floatToBool( *splitEnabled );
+            bool splitProcessing = ParameterUtilities::floatToBool( *splitEnabled );
             
             if ( loDistType == Parameters::DistortionType::Fuzz ) {
                 lowFuzz.apply( lowChannelData, lowChannelSize );

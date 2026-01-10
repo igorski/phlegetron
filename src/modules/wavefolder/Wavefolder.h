@@ -21,7 +21,7 @@
 class WaveFolder
 {
     public:
-        WaveFolder( float input );
+        WaveFolder();
 
         float getAmount();
         void setAmount( float value );

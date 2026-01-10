@@ -68,11 +68,50 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         {
             std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-            // params.push_back( std::make_unique<juce::AudioParameterBool> ( Parameters::DIST_ACTIVE,   "Distortion active", false ));
-            params.push_back( std::make_unique<juce::AudioParameterFloat>( Parameters::DRY_WET_MIX, "Dry/wet mix", 0.f, 1.f, 1.f ));
-            params.push_back( std::make_unique<juce::AudioParameterFloat>( Parameters::DIST_INPUT, "Input level", 0.f, 1.f, 1.f ));
-            params.push_back( std::make_unique<juce::AudioParameterFloat>( Parameters::DIST_CUT_THRESH, "Cutoff threshold", 0.f, 1.f, Parameters::Config::DIST_CUT_THRESH_DEF ));
-            params.push_back( std::make_unique<juce::AudioParameterFloat>( Parameters::DIST_THRESHOLD, "Threshold", 0.f, 1.f, Parameters::Config::DIST_THRESH_DEF ));
+            params.push_back(
+                std::make_unique<juce::AudioParameterFloat>( Parameters::DRY_WET_MIX, "Dry/wet mix", 0.f, 1.f, 1.f )
+            );
+            params.push_back(
+                std::make_unique<juce::AudioParameterBool>( Parameters::SPLIT_ENABLED, "Split enabled", true )
+            );
+            params.push_back(
+                std::make_unique<juce::AudioParameterBool>( Parameters::SPLIT_MODE, "Split mode", false )
+            );
+            params.push_back(
+                std::make_unique<juce::AudioParameterFloat>(
+                    Parameters::SPLIT_FREQ,  "Split frequency",
+                    Parameters::Ranges::SPLIT_FREQ_MIN, Parameters::Ranges::SPLIT_FREQ_MAX, Parameters::Config::SPLIT_FREQ_DEF
+                )
+            );
+
+            // low band distortion
+            params.push_back(
+                std::make_unique<juce::AudioParameterBool>( Parameters::LO_DIST_TYPE, "Low type", false )
+            );
+            params.push_back(
+                std::make_unique<juce::AudioParameterFloat>( Parameters::LO_DIST_INPUT, "Low Input level", 0.f, 1.f, 0.5f )
+            );
+            params.push_back(
+                std::make_unique<juce::AudioParameterFloat>( Parameters::LO_DIST_CUTOFF, "Low Cutoff threshold", 0.f, 1.f, Parameters::Config::DIST_CUT_THRESH_DEF )
+            );
+            params.push_back(
+                std::make_unique<juce::AudioParameterFloat>( Parameters::LO_DIST_THRESH, "Low Threshold", 0.f, 1.f, Parameters::Config::DIST_THRESH_DEF )
+            );
+
+            // high band distortion
+
+            params.push_back(
+                std::make_unique<juce::AudioParameterBool>( Parameters::HI_DIST_TYPE, "Hi type", true )
+            );
+            params.push_back(
+                std::make_unique<juce::AudioParameterFloat>( Parameters::HI_DIST_INPUT, "Hi Input level", 0.f, 1.f, 0.5f )
+            );
+            params.push_back(
+                std::make_unique<juce::AudioParameterFloat>( Parameters::HI_DIST_CUTOFF, "Hi Cutoff threshold", 0.f, 1.f, Parameters::Config::DIST_CUT_THRESH_DEF )
+            );
+            params.push_back(
+                std::make_unique<juce::AudioParameterFloat>( Parameters::HI_DIST_THRESH, "Hi Threshold", 0.f, 1.f, Parameters::Config::DIST_THRESH_DEF )
+            );
             
             return { params.begin(), params.end() };
         }
@@ -93,12 +132,14 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         
     private:
         juce::OwnedArray<juce::IIRFilter> lowPassFilters;
-        juce::OwnedArray<juce::IIRFilter> bandPassFilters;
         juce::OwnedArray<juce::IIRFilter> highPassFilters;
+        Fuzz lowFuzz;
+        Fuzz hiFuzz;
+        WaveFolder lowWaveFolder;
+        WaveFolder hiWaveFolder;
 
-        Fuzz* fuzz = nullptr;
-        WaveFolder* waveFolder = nullptr;
-
+        float ATTENUATION_FACTOR = 0.5f; // two channels (low and hi)
+        
         // FFT
 
         struct ChannelState
@@ -118,11 +159,59 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         
         // parameters
 
-        std::atomic<float>* distActive;
         std::atomic<float>* dryWetMix;
-        std::atomic<float>* distInputLevel;
-        std::atomic<float>* distCutoffThreshold;
-        std::atomic<float>* distThreshold;
+        std::atomic<float>* splitEnabled;
+        std::atomic<float>* splitFreq;
+        std::atomic<float>* splitMode;
+        std::atomic<float>* loDistType;
+        std::atomic<float>* loDistInputLevel;
+        std::atomic<float>* loDistThreshold;
+        std::atomic<float>* loDistCutoffThreshold;
+        std::atomic<float>* hiDistType;
+        std::atomic<float>* hiDistInputLevel;
+        std::atomic<float>* hiDistThreshold;
+        std::atomic<float>* hiDistCutoffThreshold;
+
+        inline bool floatToBool( const float value ) {
+            return value >= 0.5f;
+        }
+
+        inline void applyDistortion(
+            juce::AudioBuffer<float>& lowBuffer, juce::AudioBuffer<float>& highBuffer, const int channelNum
+        ) {
+            applyDistortion(
+                lowBuffer.getWritePointer( channelNum ),
+                highBuffer.getWritePointer( channelNum ),
+                static_cast<unsigned long>( lowBuffer.getNumSamples() ),
+                static_cast<unsigned long>( highBuffer.getNumSamples() )
+            );
+        }
+
+        inline void applyDistortion(
+            float* lowChannelData, float* highChannelData, unsigned long lowChannelSize, unsigned long highChannelSize
+        ) {
+            bool splitProcessing  = floatToBool( *splitEnabled );
+            
+            if ( floatToBool( *loDistType )) {
+                lowWaveFolder.apply( lowChannelData, lowChannelSize );
+                if ( !splitProcessing ) {
+                    lowWaveFolder.apply( highChannelData, highChannelSize );
+                }
+            } else {
+                lowFuzz.apply( lowChannelData, lowChannelSize );
+                if ( !splitProcessing ) {
+                    lowFuzz.apply( highChannelData, highChannelSize );
+                }
+            }
+
+            if ( splitProcessing ) {
+                if ( floatToBool( *hiDistType )) {
+                    hiWaveFolder.apply( highChannelData, highChannelSize );
+                } else {
+                    hiFuzz.apply( highChannelData, highChannelSize );
+                }
+            }
+        }
         
         //==============================================================================
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR( AudioPluginAudioProcessor )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2024-2025 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

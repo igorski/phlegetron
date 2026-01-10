@@ -19,9 +19,9 @@
 
 // constructor
 
-Fuzz::Fuzz( float input )
+Fuzz::Fuzz()
 {
-    setInputLevel( input );
+    setInputLevel( 1.0f );
     setCutOff( Parameters::Config::DIST_CUT_THRESH_DEF );
     setThreshold( Parameters::Config::DIST_THRESH_DEF );
 
@@ -32,7 +32,7 @@ Fuzz::Fuzz( float input )
 
 void Fuzz::apply( float* channelData, unsigned long bufferSize )
 {
-    for ( int i = 0; i < bufferSize; ++i )
+    for ( size_t i = 0; i < bufferSize; ++i )
     {
         float inputSample = channelData[ i ] * _input;
 

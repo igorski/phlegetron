@@ -21,7 +21,7 @@
 class Fuzz
 {
     public:
-        Fuzz( float input );
+        Fuzz();
 
         float getAmount();
         void setAmount( float value );

@@ -19,9 +19,9 @@
 
 // constructor
 
-WaveFolder::WaveFolder( float input )
+WaveFolder::WaveFolder()
 {
-    setInputLevel( input );
+    setInputLevel( 1.0f );
     setThreshold( Parameters::Config::DIST_THRESH_DEF );
 }
 
@@ -31,7 +31,7 @@ void WaveFolder::apply( float* channelData, unsigned long bufferSize )
 {
     float gain = _input * 10.f;
 
-    for ( int i = 0; i < bufferSize; ++i )
+    for ( size_t i = 0; i < bufferSize; ++i )
     {
         float inputSample = channelData[ i ] * gain;
 

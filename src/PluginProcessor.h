@@ -162,12 +162,12 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         std::atomic<float>* dryWetMix;
         std::atomic<float>* splitEnabled;
         std::atomic<float>* splitFreq;
-        std::atomic<float>* splitMode;
-        std::atomic<float>* loDistType;
+        std::atomic<Parameters::SplitMode> splitMode;
+        std::atomic<Parameters::DistortionType> loDistType;
         std::atomic<float>* loDistInputLevel;
         std::atomic<float>* loDistThreshold;
         std::atomic<float>* loDistCutoffThreshold;
-        std::atomic<float>* hiDistType;
+        std::atomic<Parameters::DistortionType> hiDistType;
         std::atomic<float>* hiDistInputLevel;
         std::atomic<float>* hiDistThreshold;
         std::atomic<float>* hiDistCutoffThreshold;
@@ -177,38 +177,27 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         }
 
         inline void applyDistortion(
-            juce::AudioBuffer<float>& lowBuffer, juce::AudioBuffer<float>& highBuffer, const int channelNum
-        ) {
-            applyDistortion(
-                lowBuffer.getWritePointer( channelNum ),
-                highBuffer.getWritePointer( channelNum ),
-                static_cast<unsigned long>( lowBuffer.getNumSamples() ),
-                static_cast<unsigned long>( highBuffer.getNumSamples() )
-            );
-        }
-
-        inline void applyDistortion(
             float* lowChannelData, float* highChannelData, unsigned long lowChannelSize, unsigned long highChannelSize
         ) {
             bool splitProcessing = floatToBool( *splitEnabled );
             
-            if ( floatToBool( *loDistType )) {
-                lowWaveFolder.apply( lowChannelData, lowChannelSize );
-                if ( !splitProcessing ) {
-                    lowWaveFolder.apply( highChannelData, highChannelSize );
-                }
-            } else {
+            if ( loDistType == Parameters::DistortionType::Fuzz ) {
                 lowFuzz.apply( lowChannelData, lowChannelSize );
                 if ( !splitProcessing ) {
                     lowFuzz.apply( highChannelData, highChannelSize );
                 }
+            } else if ( loDistType == Parameters::DistortionType::WaveFolder ) {
+                lowWaveFolder.apply( lowChannelData, lowChannelSize );
+                if ( !splitProcessing ) {
+                    lowWaveFolder.apply( highChannelData, highChannelSize );
+                }
             }
 
             if ( splitProcessing ) {
-                if ( floatToBool( *hiDistType )) {
-                    hiWaveFolder.apply( highChannelData, highChannelSize );
-                } else {
+                if ( hiDistType == Parameters::DistortionType::Fuzz ) {
                     hiFuzz.apply( highChannelData, highChannelSize );
+                } else if ( hiDistType == Parameters::DistortionType::WaveFolder ) {
+                    hiWaveFolder.apply( highChannelData, highChannelSize );
                 }
             }
         }

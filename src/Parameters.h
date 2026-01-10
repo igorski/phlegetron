@@ -43,10 +43,15 @@ namespace Parameters {
         static float SPLIT_FREQ_MAX = 5000.f;
     }
 
-    namespace DistortionTypes {
-        static juce::String DIST_FUZZ       = "fuzz";
-        static juce::String DIST_WAVEFOLDER = "waveFolder";
-    }
+    enum class SplitMode {
+        EQ = 0,
+        Harmonic,
+    };
+
+    enum class DistortionType {
+        Fuzz = 0,
+        WaveFolder,
+    };
 
     namespace Config {
         static float SPLIT_FREQ_DEF      = 110.f;

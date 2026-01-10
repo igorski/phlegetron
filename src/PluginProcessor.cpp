@@ -34,12 +34,12 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesPro
     dryWetMix             = parameters.getRawParameterValue( Parameters::DRY_WET_MIX );
     splitEnabled          = parameters.getRawParameterValue( Parameters::SPLIT_ENABLED );
     splitFreq             = parameters.getRawParameterValue( Parameters::SPLIT_FREQ );
-    splitMode             = parameters.getRawParameterValue( Parameters::SPLIT_MODE );
-    loDistType            = parameters.getRawParameterValue( Parameters::LO_DIST_TYPE );
+    splitMode             = static_cast<Parameters::SplitMode>( parameters.getRawParameterValue( Parameters::SPLIT_MODE )->load());
+    loDistType            = static_cast<Parameters::DistortionType>( parameters.getRawParameterValue( Parameters::LO_DIST_TYPE )->load());
     loDistInputLevel      = parameters.getRawParameterValue( Parameters::LO_DIST_INPUT );
     loDistThreshold       = parameters.getRawParameterValue( Parameters::LO_DIST_THRESH );
     loDistCutoffThreshold = parameters.getRawParameterValue( Parameters::LO_DIST_CUTOFF );
-    hiDistType            = parameters.getRawParameterValue( Parameters::HI_DIST_TYPE );
+    hiDistType            = static_cast<Parameters::DistortionType>( parameters.getRawParameterValue( Parameters::HI_DIST_TYPE )->load());
     hiDistInputLevel      = parameters.getRawParameterValue( Parameters::HI_DIST_INPUT );
     hiDistThreshold       = parameters.getRawParameterValue( Parameters::HI_DIST_THRESH );
     hiDistCutoffThreshold = parameters.getRawParameterValue( Parameters::HI_DIST_CUTOFF );
@@ -143,22 +143,32 @@ void AudioPluginAudioProcessor::changeProgramName( int index, const juce::String
 
 void AudioPluginAudioProcessor::updateParameters()
 {
-    if ( floatToBool( *loDistType )) {
-        lowWaveFolder.setInputLevel( *loDistInputLevel );
-        lowWaveFolder.setThreshold( *loDistThreshold );
-    } else {
+    splitMode = static_cast<Parameters::SplitMode>(
+        parameters.getRawParameterValue( Parameters::SPLIT_MODE )->load()
+    );
+    loDistType = static_cast<Parameters::DistortionType>(
+        parameters.getRawParameterValue( Parameters::LO_DIST_TYPE )->load()
+    );
+    hiDistType = static_cast<Parameters::DistortionType>(
+        parameters.getRawParameterValue( Parameters::HI_DIST_TYPE )->load()
+    );
+
+    if ( loDistType == Parameters::DistortionType::Fuzz ) {
         lowFuzz.setInputLevel( *loDistInputLevel );
         lowFuzz.setThreshold( *loDistThreshold );
         lowFuzz.setCutOff( *loDistCutoffThreshold );
+    } else if ( loDistType == Parameters::DistortionType::WaveFolder ) {
+        lowWaveFolder.setInputLevel( *loDistInputLevel );
+        lowWaveFolder.setThreshold( *loDistThreshold );
     }
 
-    if ( floatToBool( *hiDistType )) {
-        hiWaveFolder.setInputLevel( *hiDistInputLevel );
-        hiWaveFolder.setThreshold( *hiDistThreshold );
-    } else {
+    if ( hiDistType == Parameters::DistortionType::Fuzz ) {
         hiFuzz.setInputLevel( *hiDistInputLevel );
         hiFuzz.setThreshold( *hiDistThreshold );
         hiFuzz.setCutOff( *hiDistCutoffThreshold );
+    } else if ( hiDistType == Parameters::DistortionType::WaveFolder ) {
+        hiWaveFolder.setInputLevel( *hiDistInputLevel );
+        hiWaveFolder.setThreshold( *hiDistThreshold );
     }
 
     int channelAmount = getTotalNumOutputChannels();
@@ -216,7 +226,6 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     float dryMix  = 1.f - *dryWetMix;
     float wetMix  = *dryWetMix;
     bool blendDry = dryMix > 0.f;
-    bool harmonicMode = floatToBool( *splitMode );
 
     // Create temporary buffers for each band and combined input
 
@@ -253,11 +262,16 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
      
         // process mode 1: EQ based split
 
-        if ( !harmonicMode ) {
+        if ( splitMode == Parameters::SplitMode::EQ ) {
             lowBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
             highBuffer.copyFrom( channel, 0, buffer, channel, 0, bufferSize );
 
-            applyDistortion( lowBuffer, highBuffer, channel );
+            applyDistortion(
+                lowBuffer.getWritePointer( channel ),
+                highBuffer.getWritePointer( channel ),
+                static_cast<unsigned long>( lowBuffer.getNumSamples() ),
+                static_cast<unsigned long>( highBuffer.getNumSamples() )
+            );
 
             // apply the filtering
 

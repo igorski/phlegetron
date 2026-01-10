@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2024-2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 class Fuzz
 {
     public:
-        Fuzz( float input );
+        Fuzz();
 
         float getAmount();
         void setAmount( float value );
@@ -35,7 +35,7 @@ class Fuzz
         float getThreshold();
         void setThreshold( float value );
         
-        void apply( juce::AudioBuffer<float>& buffer, int channel );
+        void apply( float* channelData, unsigned long bufferSize );
 
     private:
         float _amount;

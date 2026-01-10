@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2024-2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,18 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesPro
 {
     // grab a reference to all automatable parameters and initialize the values (to their defined defaults)
 
-    dryWetMix           = parameters.getRawParameterValue( Parameters::DRY_WET_MIX );
-    distInputLevel      = parameters.getRawParameterValue( Parameters::DIST_INPUT );
-    distCutoffThreshold = parameters.getRawParameterValue( Parameters::DIST_CUT_THRESH );
-    distThreshold       = parameters.getRawParameterValue( Parameters::DIST_THRESHOLD );
+    dryWetMix             = parameters.getRawParameterValue( Parameters::DRY_WET_MIX );
+    splitEnabled          = parameters.getRawParameterValue( Parameters::SPLIT_ENABLED );
+    splitFreq             = parameters.getRawParameterValue( Parameters::SPLIT_FREQ );
+    splitMode             = static_cast<Parameters::SplitMode>( parameters.getRawParameterValue( Parameters::SPLIT_MODE )->load());
+    loDistType            = static_cast<Parameters::DistortionType>( parameters.getRawParameterValue( Parameters::LO_DIST_TYPE )->load());
+    loDistInputLevel      = parameters.getRawParameterValue( Parameters::LO_DIST_INPUT );
+    loDistThreshold       = parameters.getRawParameterValue( Parameters::LO_DIST_THRESH );
+    loDistCutoffThreshold = parameters.getRawParameterValue( Parameters::LO_DIST_CUTOFF );
+    hiDistType            = static_cast<Parameters::DistortionType>( parameters.getRawParameterValue( Parameters::HI_DIST_TYPE )->load());
+    hiDistInputLevel      = parameters.getRawParameterValue( Parameters::HI_DIST_INPUT );
+    hiDistThreshold       = parameters.getRawParameterValue( Parameters::HI_DIST_THRESH );
+    hiDistCutoffThreshold = parameters.getRawParameterValue( Parameters::HI_DIST_CUTOFF );
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -135,24 +143,40 @@ void AudioPluginAudioProcessor::changeProgramName( int index, const juce::String
 
 void AudioPluginAudioProcessor::updateParameters()
 {
-    fuzz->setInputLevel( *distInputLevel );
-    fuzz->setCutOff( *distCutoffThreshold );
-    fuzz->setThreshold( *distThreshold );
+    splitMode = static_cast<Parameters::SplitMode>(
+        parameters.getRawParameterValue( Parameters::SPLIT_MODE )->load()
+    );
+    loDistType = static_cast<Parameters::DistortionType>(
+        parameters.getRawParameterValue( Parameters::LO_DIST_TYPE )->load()
+    );
+    hiDistType = static_cast<Parameters::DistortionType>(
+        parameters.getRawParameterValue( Parameters::HI_DIST_TYPE )->load()
+    );
 
-    waveFolder->setInputLevel( *distInputLevel );
-    // waveFolder->setCutOff( *distCutoffThreshold );
-    waveFolder->setThreshold( *distThreshold );
+    if ( loDistType == Parameters::DistortionType::Fuzz ) {
+        lowFuzz.setInputLevel( *loDistInputLevel );
+        lowFuzz.setThreshold( *loDistThreshold );
+        lowFuzz.setCutOff( *loDistCutoffThreshold );
+    } else if ( loDistType == Parameters::DistortionType::WaveFolder ) {
+        lowWaveFolder.setInputLevel( *loDistInputLevel );
+        lowWaveFolder.setThreshold( *loDistThreshold );
+    }
 
-    // int channelAmount = getTotalNumOutputChannels();
+    if ( hiDistType == Parameters::DistortionType::Fuzz ) {
+        hiFuzz.setInputLevel( *hiDistInputLevel );
+        hiFuzz.setThreshold( *hiDistThreshold );
+        hiFuzz.setCutOff( *hiDistCutoffThreshold );
+    } else if ( hiDistType == Parameters::DistortionType::WaveFolder ) {
+        hiWaveFolder.setInputLevel( *hiDistInputLevel );
+        hiWaveFolder.setThreshold( *hiDistThreshold );
+    }
+
+    int channelAmount = getTotalNumOutputChannels();
  
-    // for ( int channel = 0; channel < channelAmount; ++channel ) {
-    //     bool isOddChannel = channel % 2 == 0;
-
-
-    //     lowPassFilters [ channel ]->setCoefficients( juce::IIRCoefficients::makeLowPass ( _sampleRate, *lowBand ));
-    //     bandPassFilters[ channel ]->setCoefficients( juce::IIRCoefficients::makeBandPass( _sampleRate, *midBand, 1.0 ));
-    //     highPassFilters[ channel ]->setCoefficients( juce::IIRCoefficients::makeHighPass( _sampleRate, *hiBand ));
-    // }
+    for ( int channel = 0; channel < channelAmount; ++channel ) {
+        lowPassFilters [ channel ]->setCoefficients( juce::IIRCoefficients::makeLowPass ( _sampleRate, *splitFreq ));
+        highPassFilters[ channel ]->setCoefficients( juce::IIRCoefficients::makeHighPass( _sampleRate, *splitFreq ));
+    }
 }
 
 /* resource management */
@@ -171,16 +195,11 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     for ( int i = 0; i < channelAmount; ++i )
     {
         lowPassFilters.add ( new juce::IIRFilter());
-        bandPassFilters.add( new juce::IIRFilter());
         highPassFilters.add( new juce::IIRFilter());
 
-        lowPassFilters [ i ]->setCoefficients( juce::IIRCoefficients::makeLowPass ( sampleRate, Parameters::Config::LOW_BAND_DEF ));
-        bandPassFilters[ i ]->setCoefficients( juce::IIRCoefficients::makeBandPass( sampleRate, Parameters::Config::MID_BAND_DEF, 1.0 ));
-        highPassFilters[ i ]->setCoefficients( juce::IIRCoefficients::makeHighPass( sampleRate, Parameters::Config::HI_BAND_DEF ));
+        lowPassFilters [ i ]->setCoefficients( juce::IIRCoefficients::makeLowPass ( sampleRate, Parameters::Config::SPLIT_FREQ_DEF ));
+        highPassFilters[ i ]->setCoefficients( juce::IIRCoefficients::makeHighPass( sampleRate, Parameters::Config::SPLIT_FREQ_DEF ));
     }
-    // bitCrusher = new BitCrusher( Parameters::Config::DISTORTION_AMT_DEF, 1.f, Parameters::Config::DISTORTION_WET_DEF );
-    fuzz = new Fuzz( 1.0f );
-    waveFolder = new WaveFolder( 1.0f );
     
     // align values with model
     updateParameters();
@@ -189,18 +208,7 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
 void AudioPluginAudioProcessor::releaseResources()
 {
     lowPassFilters.clear();
-    bandPassFilters.clear();
     highPassFilters.clear();
-
-    if ( fuzz != nullptr ) {
-        delete fuzz;
-        fuzz = nullptr;
-    }
-
-    if ( waveFolder != nullptr ) {
-        delete waveFolder;
-        waveFolder = nullptr;
-    }
 }
 
 /* rendering */
@@ -212,58 +220,187 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
   
     int channelAmount = buffer.getNumChannels();
     int bufferSize    = buffer.getNumSamples();
+    
+    float dryMix  = 1.f - *dryWetMix;
+    float wetMix  = *dryWetMix;
+    bool blendDry = dryMix > 0.f;
 
-    /*
-    auto currentPosition = getPlayHead()->getPosition();
+    const int fftOrder    = 11; // 2048-point FFT
+    const int fftSize     = 1 << fftOrder;
+    constexpr int hopSize = fftSize / 2;
+    const float baseFreq  = *splitFreq;
 
-    if ( currentPosition.hasValue() && alignWithSequencer( currentPosition )) {
-          
+    static juce::dsp::FFT fft( fftOrder );
+
+    // these are static as a cheap way to avoid allocation overhead
+
+    static std::vector<float> window( fftSize );
+    static bool windowInit = false;
+    if ( !windowInit )
+    {
+        for ( size_t n = 0; n < fftSize; ++n ) {
+            window[ n ] = 0.5f - 0.5f * std::cos( 2.f * juce::MathConstants<float>::pi * n / fftSize );
+        }
+        windowInit = true;
     }
-    */
 
-    
-    float dryMix = 1.f - *dryWetMix;
-    float wetMix = *dryWetMix;
-    
-    // Create temporary buffers for each band
-    juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
-    juce::AudioBuffer<float> midBuffer( channelAmount, bufferSize );
-    juce::AudioBuffer<float> hiBuffer ( channelAmount, bufferSize );
+    // per channel processing
 
     for ( int channel = 0; channel < channelAmount; ++channel )
     {
         if ( buffer.getReadPointer( channel ) == nullptr ) {
             continue;
         }
+        auto* channelData = buffer.getWritePointer( channel );
+     
+        // process mode 1: EQ based split
 
-        lowBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
-        midBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
-        hiBuffer.copyFrom  ( channel, 0, buffer, channel, 0, bufferSize );
-
-        // apply the effects
-
-        // fuzz->apply( midBuffer, channel );
-        waveFolder->apply( midBuffer, channel );
-
-        // apply the filtering
-
-        lowPassFilters [ channel ]->processSamples( lowBuffer.getWritePointer( channel ), bufferSize );
-        bandPassFilters[ channel ]->processSamples( midBuffer.getWritePointer( channel ), bufferSize );
-        highPassFilters[ channel ]->processSamples( hiBuffer.getWritePointer ( channel ), bufferSize );
-
-        // write the effected buffer into the output
+        if ( splitMode == Parameters::SplitMode::EQ ) {
+            juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
+            juce::AudioBuffer<float> highBuffer( channelAmount, bufferSize );
     
-        for ( int i = 0; i < bufferSize; ++i ) {
-            auto input = buffer.getSample( channel, i ) * dryMix;
+            lowBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
+            highBuffer.copyFrom( channel, 0, buffer, channel, 0, bufferSize );
 
-            buffer.setSample(
-                channel, i,
-                input + (
-                    lowBuffer.getSample( channel, i ) +
-                    midBuffer.getSample( channel, i ) +
-                    hiBuffer.getSample ( channel, i )
-                ) * wetMix
+            applyDistortion(
+                lowBuffer.getWritePointer( channel ),
+                highBuffer.getWritePointer( channel ),
+                static_cast<unsigned long>( lowBuffer.getNumSamples() ),
+                static_cast<unsigned long>( highBuffer.getNumSamples() )
             );
+
+            // apply the filtering
+
+            lowPassFilters [ channel ]->processSamples( lowBuffer.getWritePointer( channel ), bufferSize );
+            highPassFilters[ channel ]->processSamples( highBuffer.getWritePointer ( channel ), bufferSize );
+
+            // write the effected buffer into the output
+    
+            for ( int i = 0; i < bufferSize; ++i ) {
+                auto input = buffer.getSample( channel, i ) * dryMix;
+
+                buffer.setSample(
+                    channel, i,
+                    input + ( ATTENUATION_FACTOR * (
+                        lowBuffer.getSample( channel, i ) +
+                        highBuffer.getSample ( channel, i )
+                    )) * wetMix
+                );
+            }
+        }
+        else {
+            // process mode 2: harmonic bin splitting
+
+            std::vector<float> inBuffer( static_cast<unsigned long>( bufferSize ));
+
+            if ( blendDry ) {
+                // copy the dry signal at its blend value
+                for ( size_t i = 0; i < static_cast<unsigned long>( bufferSize ); ++i ) {
+                    inBuffer[ i ] = channelData[ i ] * dryMix;
+                }
+            }
+            
+            static std::array<ChannelState, 2> channelStates;
+
+            auto& channelState = channelStates[ static_cast<unsigned long>( channel )];
+            if ( !channelState.initialised ) {
+                channelState.inputBuffer.assign ( fftSize, 0.0f );
+                channelState.outputBuffer.assign( fftSize, 0.0f );
+                channelState.initialised = true;
+            }
+
+            int samplesProcessed = 0;
+            while ( samplesProcessed < bufferSize )
+            {
+                // Write new input into circular inputBuffer
+                const int samplesToCopy = std::min( hopSize, bufferSize - samplesProcessed );
+                std::memmove(
+                    channelState.inputBuffer.data(), channelState.inputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
+                );
+                std::memcpy(
+                    channelState.inputBuffer.data() + ( fftSize - hopSize ), channelData + samplesProcessed, static_cast<unsigned long>( samplesToCopy ) * sizeof( float )
+                );
+
+                // apply FFT
+
+                std::vector<float> fftTime( fftSize * 2, 0.0f );
+                for ( size_t i = 0; i < fftSize; ++i ) {
+                    fftTime[ i ] = channelState.inputBuffer[ i ] * window[ i ];
+                }
+                fft.performRealOnlyForwardTransform( fftTime.data());
+
+                // convert to complex
+                
+                std::vector<std::complex<float>> spec( fftSize / 2 );
+                for ( size_t i = 0; i < fftSize / 2; ++i ) {
+                    spec[ i ] = { fftTime[ 2 * i ], fftTime[ 2 * i + 1 ]};
+                }
+
+                // split spectrum by harmonic proximity
+                
+                std::vector<std::complex<float>> specA( fftSize / 2 ), specB( fftSize / 2 );
+                for ( size_t bin = 0; bin < fftSize / 2; ++bin )
+                {
+                    float freq = bin * ( float ) _sampleRate / fftSize;
+                    bool harmonic = false;
+                    for ( int n = 1; n <= 12; ++n ) {
+                        float h = n * baseFreq;
+                        if ( std::abs( freq - h ) < h * 0.03f ) {
+                            harmonic = true;
+                            break;
+                        }
+                    }
+                    if ( harmonic ) {
+                        specA[ bin ] = spec[ bin ];
+                    } else {
+                        specB[ bin ] = spec[ bin ];
+                    }
+                }
+
+                auto iFFT = [&]( const std::vector<std::complex<float>>& src, std::vector<float>& dst )
+                {
+                    for ( size_t i = 0; i < fftSize / 2; ++i ) {
+                        dst[ 2 * i ]     = src[ i ].real();
+                        dst[ 2 * i + 1 ] = src[ i ].imag();
+                    }
+                    fft.performRealOnlyInverseTransform( dst.data() );
+                };
+
+                // inverse FFT and OLA accumulate
+
+                std::vector<float> tempA( fftSize * 2, 0.0f ), tempB( fftSize * 2, 0.0f );
+                iFFT( specA, tempA );
+                iFFT( specB, tempB );
+
+                applyDistortion( tempA.data(), tempB.data(), tempA.size(), tempB.size() );
+
+                // sum and window
+
+                for ( size_t i = 0; i < fftSize; ++i ) {
+                    channelState.outputBuffer[ i ] += ( ATTENUATION_FACTOR * ( tempA[ i ] + tempB[ i ])) * window[ i ];
+                }
+
+                // write samples to output (for the hopSize)
+
+                for ( int i = 0; i < hopSize && ( samplesProcessed + i < bufferSize ); ++i ) {
+                    channelData[ samplesProcessed + i ] = channelState.outputBuffer[ static_cast<unsigned long>( i )] * wetMix;
+                }
+
+                // shift output buffer for next overlap
+
+                std::memmove(
+                    channelState.outputBuffer.data(), channelState.outputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
+                );
+                std::fill( channelState.outputBuffer.begin() + ( fftSize - hopSize ), channelState.outputBuffer.end(), 0.0f );
+
+                samplesProcessed += hopSize;
+            }
+
+            if ( blendDry ) {
+                for ( size_t i = 0; i < static_cast<unsigned long>( bufferSize ); ++i ) {
+                    channelData[ i ] += inBuffer[ i ];
+                }
+            }
         }
     }
 }

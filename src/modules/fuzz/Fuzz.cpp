@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2024-2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +19,9 @@
 
 // constructor
 
-Fuzz::Fuzz( float input )
+Fuzz::Fuzz()
 {
-    setInputLevel( input );
+    setInputLevel( 1.0f );
     setCutOff( Parameters::Config::DIST_CUT_THRESH_DEF );
     setThreshold( Parameters::Config::DIST_THRESH_DEF );
 
@@ -30,12 +30,9 @@ Fuzz::Fuzz( float input )
 
 /* public methods */
 
-void Fuzz::apply( juce::AudioBuffer<float>& buffer, int channel )
+void Fuzz::apply( float* channelData, unsigned long bufferSize )
 {
-    auto* channelData = buffer.getWritePointer( channel );
-    int bufferSize    = buffer.getNumSamples();
-
-    for ( int i = 0; i < bufferSize; ++i )
+    for ( size_t i = 0; i < bufferSize; ++i )
     {
         float inputSample = channelData[ i ] * _input;
 

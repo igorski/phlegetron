@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2024-2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,19 +21,45 @@
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor( AudioPluginAudioProcessor& p, juce::AudioProcessorValueTreeState& state )
-    : AudioProcessorEditor( &p ), parameters( state )
+    : AudioProcessorEditor( &p ), parameters( state ), audioProcessor( p )
 {
-    mixAtt = createControl( Parameters::DRY_WET_MIX, mixControl, true );
-
     scaledWidth  = static_cast<int>( ceil( WIDTH / 2 ));
     scaledHeight = static_cast<int>( ceil( HEIGHT / 2 ));
 
     setSize( scaledWidth, scaledHeight );
+
+    // create UI controls for all plugin parameters
+
+    splitEnabledAtt = createControl( Parameters::SPLIT_ENABLED, splitEnabledControl );
+    splitFreqAtt    = createControl( Parameters::SPLIT_FREQ, splitFreqControl, true );
+
+    // add listeners
+
+    audioProcessor.parameters.addParameterListener( Parameters::SPLIT_ENABLED, this );
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor()
 {
-    // nowt...
+    audioProcessor.parameters.removeParameterListener( Parameters::SPLIT_ENABLED, this );   
+}
+
+void AudioPluginAudioProcessorEditor::parameterChanged( const juce::String& id, float value )
+{
+    if ( id == Parameters::SPLIT_ENABLED ) {
+        const bool enabled = ParameterUtilities::floatToBool( value );
+
+        juce::MessageManager::callAsync([ this, enabled ] {
+            handleSplitState( enabled );
+        });
+    }
+}
+
+void AudioPluginAudioProcessorEditor::handleSplitState( bool splitEnabled )
+{
+    // @todo this is test code, implement final design and business logic
+    splitFreqControl.setEnabled( splitEnabled );
+    // Optional: grey out visually
+    // splitFreqControl.setAlpha( splitEnabled ? 1.0f : 0.4f );
 }
 
 void AudioPluginAudioProcessorEditor::paint( juce::Graphics& g )
@@ -57,5 +83,10 @@ void AudioPluginAudioProcessorEditor::paint( juce::Graphics& g )
 
 void AudioPluginAudioProcessorEditor::resized()
 {
-    
+    // @todo implement design
+    int lowSectionX = 50;
+    int lowSectionY = 50;
+
+    splitFreqControl.setBounds ( lowSectionX, lowSectionY, ROTARY_SIZE, ROTARY_SIZE );
+    splitEnabledControl.setBounds( lowSectionX + ROTARY_MARGIN, lowSectionY, ROTARY_SIZE, ROTARY_SIZE );
 }

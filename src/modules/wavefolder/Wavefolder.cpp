@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2025-2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,22 +19,19 @@
 
 // constructor
 
-WaveFolder::WaveFolder( float input )
+WaveFolder::WaveFolder()
 {
-    setInputLevel( input );
+    setInputLevel( 1.0f );
     setThreshold( Parameters::Config::DIST_THRESH_DEF );
 }
 
 /* public methods */
 
-void WaveFolder::apply( juce::AudioBuffer<float>& buffer, int channel )
+void WaveFolder::apply( float* channelData, unsigned long bufferSize )
 {
-    auto* channelData = buffer.getWritePointer( channel );
-    int bufferSize    = buffer.getNumSamples();
-
     float gain = _input * 10.f;
 
-    for ( int i = 0; i < bufferSize; ++i )
+    for ( size_t i = 0; i < bufferSize; ++i )
     {
         float inputSample = channelData[ i ] * gain;
 

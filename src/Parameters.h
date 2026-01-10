@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2024-2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,24 +20,41 @@
 
 namespace Parameters {
     static juce::String DRY_WET_MIX     = "dryWetMix";
-    static juce::String DIST_INPUT      = "distInput";
-    static juce::String DIST_THRESHOLD  = "distThreshold";
-    static juce::String DIST_CUT_THRESH = "distCutoffThreshold"; 
+    static juce::String SPLIT_ENABLED   = "splitEnabled";
+    static juce::String SPLIT_FREQ      = "splitFreq";
+    static juce::String SPLIT_MODE      = "splitMode";
+    
+    // low distortion properties
+
+    static juce::String LO_DIST_TYPE   = "loType";
+    static juce::String LO_DIST_INPUT  = "loInput";
+    static juce::String LO_DIST_THRESH = "loThreshold"; // @todo : "drive" ?
+    static juce::String LO_DIST_CUTOFF = "loCutoff";
+
+    // high distortion properties (mirrored from low)
+
+    static juce::String HI_DIST_TYPE   = "hiType";
+    static juce::String HI_DIST_INPUT  = "hiInput";
+    static juce::String HI_DIST_THRESH = "hiThreshold"; // @todo : "drive" ?
+    static juce::String HI_DIST_CUTOFF = "hiCutoff";
 
     namespace Ranges {
-        static float LOW_BAND_MIN = 20.f;
-        static float LOW_BAND_MAX = 500.f;
-        static float MID_BAND_MIN = 500.f;
-        static float MID_BAND_MAX = 3000.f;
-        static float HI_BAND_MIN  = 5000.f;
-        static float HI_BAND_MAX  = 11025.f;
+        static float SPLIT_FREQ_MIN = 20.f;
+        static float SPLIT_FREQ_MAX = 5000.f;
     }
 
-    namespace Config {
-        static float LOW_BAND_DEF = 200.f;
-        static float MID_BAND_DEF = 1000.f;
-        static float HI_BAND_DEF  = 5000.f;
+    enum class SplitMode {
+        EQ = 0,
+        Harmonic,
+    };
 
+    enum class DistortionType {
+        Fuzz = 0,
+        WaveFolder,
+    };
+
+    namespace Config {
+        static float SPLIT_FREQ_DEF      = 110.f;
         static float DIST_CUT_THRESH_DEF = 0.02f;
         static float DIST_THRESH_DEF     = 0.1f;
     }

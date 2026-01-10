@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2024-2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
                 std::make_unique<juce::AudioParameterBool>( Parameters::SPLIT_ENABLED, "Split enabled", true )
             );
             params.push_back(
-                std::make_unique<juce::AudioParameterBool>( Parameters::SPLIT_MODE, "Split mode", false )
+                std::make_unique<juce::AudioParameterChoice>( Parameters::SPLIT_MODE, "Split mode", juce::StringArray { "EQ", "Harmonic" }, 0 )
             );
             params.push_back(
                 std::make_unique<juce::AudioParameterFloat>(
@@ -86,7 +86,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
             // low band distortion
             params.push_back(
-                std::make_unique<juce::AudioParameterBool>( Parameters::LO_DIST_TYPE, "Low type", false )
+                std::make_unique<juce::AudioParameterChoice>( Parameters::LO_DIST_TYPE, "Low distortion type", juce::StringArray { "Fuzz", "Wavefolder" }, 0 )
             );
             params.push_back(
                 std::make_unique<juce::AudioParameterFloat>( Parameters::LO_DIST_INPUT, "Low Input level", 0.f, 1.f, 0.5f )
@@ -101,7 +101,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             // high band distortion
 
             params.push_back(
-                std::make_unique<juce::AudioParameterBool>( Parameters::HI_DIST_TYPE, "Hi type", true )
+                std::make_unique<juce::AudioParameterChoice>( Parameters::HI_DIST_TYPE, "Hi distortion type", juce::StringArray { "Fuzz", "Wavefolder" }, 0 )
             );
             params.push_back(
                 std::make_unique<juce::AudioParameterFloat>( Parameters::HI_DIST_INPUT, "Hi Input level", 0.f, 1.f, 0.5f )
@@ -190,7 +190,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         inline void applyDistortion(
             float* lowChannelData, float* highChannelData, unsigned long lowChannelSize, unsigned long highChannelSize
         ) {
-            bool splitProcessing  = floatToBool( *splitEnabled );
+            bool splitProcessing = floatToBool( *splitEnabled );
             
             if ( floatToBool( *loDistType )) {
                 lowWaveFolder.apply( lowChannelData, lowChannelSize );

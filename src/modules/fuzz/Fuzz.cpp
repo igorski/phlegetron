@@ -16,6 +16,7 @@
  */
 #include "Fuzz.h"
 #include "../../Parameters.h"
+#include "../../utils/MathUtilities.h"
 
 // constructor
 
@@ -78,12 +79,12 @@ void Fuzz::setInputLevel( float value )
 
 float Fuzz::getCutOff()
 {
-    return _cutoffThreshold;
+    return MathUtilities::inverseNormalize( _cutoffThreshold );
 }
 
 void Fuzz::setCutOff( float value )
 {
-    _cutoffThreshold = value;
+    _cutoffThreshold = MathUtilities::inverseNormalize( value );
 }
 
 

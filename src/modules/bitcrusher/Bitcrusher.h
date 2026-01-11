@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2013-2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,17 +16,25 @@
  */
 #pragma once
 
-class ParameterUtilities {
+#include <juce_audio_processors/juce_audio_processors.h>
+
+class BitCrusher
+{
     public:
-        static inline bool floatToBool( const float value ) {
-            return value >= 0.5f;
-        }
+        BitCrusher();
+        ~BitCrusher();
 
-        static juce::StringArray getSplitModeNames() {
-            return juce::StringArray { "EQ", "Harmonic" };
-        }
+        void apply( float* channelData, unsigned long bufferSize );
 
-        static juce::StringArray getDistortionTypeNames() {
-            return { "Waveshaper", "Wavefolder", "Fuzz", "Bit crusher" };
-        }
+        void setAmount( float value ); // range between -1 to +1
+        void setInputLevel( float value );
+        void setOutputLevel( float value );
+
+    private:
+        int _bits; // we scale the amount to integers in the 1-16 range
+        float _amount;
+        float _inputMix;
+        float _outputMix;
+
+        void calcBits();
 };

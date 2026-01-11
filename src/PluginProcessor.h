@@ -18,8 +18,10 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "modules/bitcrusher/Bitcrusher.h"
 #include "modules/fuzz/Fuzz.h"
 #include "modules/wavefolder/Wavefolder.h"
+#include "modules/waveshaper/Waveshaper.h"
 #include "utils/ParameterUtilities.h"
 #include "Parameters.h"
 #include "ParameterListener.h"
@@ -76,7 +78,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
                 std::make_unique<juce::AudioParameterBool>( Parameters::SPLIT_ENABLED, "Split enabled", true )
             );
             params.push_back(
-                std::make_unique<juce::AudioParameterChoice>( Parameters::SPLIT_MODE, "Split mode", juce::StringArray { "EQ", "Harmonic" }, 0 )
+                std::make_unique<juce::AudioParameterChoice>( Parameters::SPLIT_MODE, "Split mode", ParameterUtilities::getSplitModeNames(), 0 )
             );
             params.push_back(
                 std::make_unique<juce::AudioParameterFloat>(
@@ -87,7 +89,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
             // low band distortion
             params.push_back(
-                std::make_unique<juce::AudioParameterChoice>( Parameters::LO_DIST_TYPE, "Low distortion type", juce::StringArray { "Fuzz", "Wavefolder" }, 0 )
+                std::make_unique<juce::AudioParameterChoice>( Parameters::LO_DIST_TYPE, "Low distortion type", ParameterUtilities::getDistortionTypeNames(), 0 )
             );
             params.push_back(
                 std::make_unique<juce::AudioParameterFloat>( Parameters::LO_DIST_INPUT, "Low Input level", 0.f, 1.f, 0.5f )
@@ -102,7 +104,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             // high band distortion
 
             params.push_back(
-                std::make_unique<juce::AudioParameterChoice>( Parameters::HI_DIST_TYPE, "Hi distortion type", juce::StringArray { "Fuzz", "Wavefolder" }, 0 )
+                std::make_unique<juce::AudioParameterChoice>( Parameters::HI_DIST_TYPE, "Hi distortion type", ParameterUtilities::getDistortionTypeNames(), 0 )
             );
             params.push_back(
                 std::make_unique<juce::AudioParameterFloat>( Parameters::HI_DIST_INPUT, "Hi Input level", 0.f, 1.f, 0.5f )
@@ -134,11 +136,15 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
     private:
         juce::OwnedArray<juce::IIRFilter> lowPassFilters;
         juce::OwnedArray<juce::IIRFilter> highPassFilters;
+        BitCrusher lowBitCrusher;
+        BitCrusher hiBitCrusher;
         Fuzz lowFuzz;
         Fuzz hiFuzz;
         WaveFolder lowWaveFolder;
         WaveFolder hiWaveFolder;
-
+        WaveShaper lowWaveShaper;
+        WaveShaper hiWaveShaper;
+        
         float ATTENUATION_FACTOR = 0.5f; // two channels (low and hi)
         
         // FFT
@@ -177,25 +183,59 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             float* lowChannelData, float* highChannelData, unsigned long lowChannelSize, unsigned long highChannelSize
         ) {
             bool splitProcessing = ParameterUtilities::floatToBool( *splitEnabled );
-            
-            if ( loDistType == Parameters::DistortionType::Fuzz ) {
-                lowFuzz.apply( lowChannelData, lowChannelSize );
-                if ( !splitProcessing ) {
-                    lowFuzz.apply( highChannelData, highChannelSize );
-                }
-            } else if ( loDistType == Parameters::DistortionType::WaveFolder ) {
-                lowWaveFolder.apply( lowChannelData, lowChannelSize );
-                if ( !splitProcessing ) {
-                    lowWaveFolder.apply( highChannelData, highChannelSize );
-                }
+
+            switch ( loDistType )
+            {
+                case Parameters::DistortionType::BitCrusher:
+                    lowBitCrusher.apply( lowChannelData, lowChannelSize );
+                    if ( !splitProcessing ) {
+                        lowBitCrusher.apply( highChannelData, highChannelSize );
+                    }
+                    break;
+                
+                case Parameters::DistortionType::Fuzz:
+                    lowFuzz.apply( lowChannelData, lowChannelSize );
+                    if ( !splitProcessing ) {
+                        lowFuzz.apply( highChannelData, highChannelSize );
+                    }
+                    break;
+
+                case Parameters::DistortionType::WaveFolder:
+                    lowWaveFolder.apply( lowChannelData, lowChannelSize );
+                    if ( !splitProcessing ) {
+                        lowWaveFolder.apply( highChannelData, highChannelSize );
+                    }
+                    break;
+
+                case Parameters::DistortionType::WaveShaper:
+                    lowWaveShaper.apply( lowChannelData, lowChannelSize );
+                    if ( !splitProcessing ) {
+                        lowWaveShaper.apply( highChannelData, highChannelSize );
+                    }
+                    break;
             }
 
-            if ( splitProcessing ) {
-                if ( hiDistType == Parameters::DistortionType::Fuzz ) {
+            if ( !splitProcessing ) {
+                return; // hi channel processed above
+            }
+
+            switch ( hiDistType )
+            {
+                case Parameters::DistortionType::BitCrusher:
+                    hiBitCrusher.apply( highChannelData, highChannelSize );
+                    break;
+
+                case Parameters::DistortionType::Fuzz:
                     hiFuzz.apply( highChannelData, highChannelSize );
-                } else if ( hiDistType == Parameters::DistortionType::WaveFolder ) {
+                    break;
+
+                case Parameters::DistortionType::WaveFolder:
                     hiWaveFolder.apply( highChannelData, highChannelSize );
-                }
+                    break;
+
+                case Parameters::DistortionType::WaveShaper:
+                    hiWaveShaper.apply( highChannelData, highChannelSize );
+                    break;
             }
         }
         

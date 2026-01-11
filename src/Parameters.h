@@ -49,8 +49,10 @@ namespace Parameters {
     };
 
     enum class DistortionType {
-        Fuzz = 0,
+        WaveShaper = 0,
         WaveFolder,
+        Fuzz,
+        BitCrusher,
     };
 
     namespace Config {

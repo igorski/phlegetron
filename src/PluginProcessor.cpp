@@ -153,24 +153,54 @@ void AudioPluginAudioProcessor::updateParameters()
         parameters.getRawParameterValue( Parameters::HI_DIST_TYPE )->load()
     );
 
-    if ( loDistType == Parameters::DistortionType::Fuzz ) {
-        lowFuzz.setInputLevel( *loDistInputLevel );
-        lowFuzz.setThreshold( *loDistThreshold );
-        lowFuzz.setCutOff( *loDistCutoffThreshold );
-    } else if ( loDistType == Parameters::DistortionType::WaveFolder ) {
-        lowWaveFolder.setInputLevel( *loDistInputLevel );
-        lowWaveFolder.setThreshold( *loDistThreshold );
-        lowWaveFolder.setThresholdNegative( *loDistCutoffThreshold );
+    switch ( loDistType )
+    {
+        case Parameters::DistortionType::BitCrusher:
+            lowBitCrusher.setInputLevel( *loDistInputLevel );
+            lowBitCrusher.setAmount( *loDistThreshold );
+            break;
+
+        case Parameters::DistortionType::Fuzz:
+            lowFuzz.setInputLevel( *loDistInputLevel );
+            lowFuzz.setThreshold( *loDistThreshold );
+            lowFuzz.setCutOff( *loDistCutoffThreshold );
+            break;
+
+        case Parameters::DistortionType::WaveFolder:
+            lowWaveFolder.setInputLevel( *loDistInputLevel );
+            lowWaveFolder.setThreshold( *loDistThreshold );
+            lowWaveFolder.setThresholdNegative( *loDistCutoffThreshold );
+            break;
+
+        case Parameters::DistortionType::WaveShaper:
+            lowWaveShaper.setOutputLevel( *loDistInputLevel );
+            lowWaveShaper.setAmount( *loDistThreshold );
+            break;
     }
 
-    if ( hiDistType == Parameters::DistortionType::Fuzz ) {
-        hiFuzz.setInputLevel( *hiDistInputLevel );
-        hiFuzz.setThreshold( *hiDistThreshold );
-        hiFuzz.setCutOff( *hiDistCutoffThreshold );
-    } else if ( hiDistType == Parameters::DistortionType::WaveFolder ) {
-        hiWaveFolder.setInputLevel( *hiDistInputLevel );
-        hiWaveFolder.setThreshold( *hiDistThreshold );
-        hiWaveFolder.setThresholdNegative( *hiDistCutoffThreshold );
+    switch ( hiDistType )
+    {
+        case Parameters::DistortionType::BitCrusher:
+            hiBitCrusher.setInputLevel( *hiDistInputLevel );
+            hiBitCrusher.setAmount( *hiDistThreshold );
+            break;
+
+        case Parameters::DistortionType::Fuzz:
+            hiFuzz.setInputLevel( *hiDistInputLevel );
+            hiFuzz.setThreshold( *hiDistThreshold );
+            hiFuzz.setCutOff( *hiDistCutoffThreshold );
+            break;
+
+        case Parameters::DistortionType::WaveFolder:
+            hiWaveFolder.setInputLevel( *hiDistInputLevel );
+            hiWaveFolder.setThreshold( *hiDistThreshold );
+            hiWaveFolder.setThresholdNegative( *hiDistCutoffThreshold );
+            break;
+
+        case Parameters::DistortionType::WaveShaper:
+            hiWaveShaper.setOutputLevel( *hiDistInputLevel );
+            hiWaveShaper.setAmount( *hiDistThreshold );
+            break;
     }
 
     int channelAmount = getTotalNumOutputChannels();

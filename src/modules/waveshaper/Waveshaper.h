@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2013-2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,17 +16,19 @@
  */
 #pragma once
 
-class ParameterUtilities {
+class WaveShaper
+{
     public:
-        static inline bool floatToBool( const float value ) {
-            return value >= 0.5f;
-        }
+        WaveShaper();
 
-        static juce::StringArray getSplitModeNames() {
-            return juce::StringArray { "EQ", "Harmonic" };
-        }
+        float getAmount();
+        void setAmount( float value ); // range between -1 and +1
+        float getOutputLevel();
+        void setOutputLevel( float value );
+        void apply( float* channelData, unsigned long bufferSize );
 
-        static juce::StringArray getDistortionTypeNames() {
-            return { "Waveshaper", "Wavefolder", "Fuzz", "Bit crusher" };
-        }
+    private:
+        float _amount;
+        float _multiplier;
+        float _level;
 };

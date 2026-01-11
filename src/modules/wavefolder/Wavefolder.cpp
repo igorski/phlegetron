@@ -76,7 +76,7 @@ void WaveFolder::setThreshold( float value )
 
 float WaveFolder::getThresholdNegative()
 {
-    _thresholdNegative;
+    return _thresholdNegative;
 }
 
 void WaveFolder::setThresholdNegative( float value )

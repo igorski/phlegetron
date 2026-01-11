@@ -19,17 +19,25 @@
 class MathUtilities
 {
     public:
-        // inverts a 0 - 1 normalized min-to-max value to have 0 be the max and 1 the min
-
-        static inline float inverseNormalize( float value )
-        {
+        /**
+         * inverts a 0 - 1 normalized min-to-max value to have 0 be the max and 1 the min
+         */
+        static inline float inverseNormalize( float value ) {
             return ( 1.f - value ) / 1.f;
         }
 
-        // convenience method to scale given value and its expected maxValue against
-        // an arbitrary range (defined by maxCompareValue in relation to maxValue)
-        static float scale( float value, float maxValue, float maxCompareValue )
-        {
+        /**
+         * ensures provided value doesn't exceed signal headroom
+         */
+        static inline float clamp( float value ) {
+            return juce::jlimit( -1.0f, 1.0f, value );
+        }
+
+        /**
+         * convenience method to scale given value and its expected maxValue against
+         * an arbitrary range (defined by maxCompareValue in relation to maxValue)
+         */
+        static float scale( float value, float maxValue, float maxCompareValue ) {
             float ratio = maxCompareValue / maxValue;
             return ( float ) ( std::min( maxValue, value ) * ratio );
         }

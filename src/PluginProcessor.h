@@ -134,8 +134,24 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         bool alignWithSequencer( juce::Optional<juce::AudioPlayHead::PositionInfo> positionInfo );
         
     private:
-        juce::OwnedArray<juce::IIRFilter> lowPassFilters;
-        juce::OwnedArray<juce::IIRFilter> highPassFilters;
+        // crossover filter processing
+
+        static constexpr int MAX_CHANNELS = 2;
+        juce::dsp::LinkwitzRileyFilter<float> lowPass[ MAX_CHANNELS ];
+        juce::dsp::LinkwitzRileyFilter<float> highPass[ MAX_CHANNELS ];
+        std::vector<float> lowBuffer;
+        std::vector<float> highBuffer;
+
+        inline void prepareCrossoverFilter(
+            juce::dsp::LinkwitzRileyFilter<float> &filter, juce::dsp::LinkwitzRileyFilterType type, float frequency
+        ) {
+            filter.reset();
+            filter.setCutoffFrequency( frequency );
+            filter.setType( type );
+        }
+
+        // effects modules
+
         BitCrusher lowBitCrusher;
         BitCrusher hiBitCrusher;
         Fuzz lowFuzz;

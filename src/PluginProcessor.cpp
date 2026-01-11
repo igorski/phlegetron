@@ -16,6 +16,7 @@
  */
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "utils/MathUtilities.h"
 
 AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesProperties()
     #if ! JucePlugin_IsMidiEffect
@@ -203,11 +204,9 @@ void AudioPluginAudioProcessor::updateParameters()
             break;
     }
 
-    int channelAmount = getTotalNumOutputChannels();
- 
-    for ( int channel = 0; channel < channelAmount; ++channel ) {
-        lowPassFilters [ channel ]->setCoefficients( juce::IIRCoefficients::makeLowPass ( _sampleRate, *splitFreq ));
-        highPassFilters[ channel ]->setCoefficients( juce::IIRCoefficients::makeHighPass( _sampleRate, *splitFreq ));
+    for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
+        prepareCrossoverFilter( lowPass[ channel ],  juce::dsp::LinkwitzRileyFilterType::lowpass,  *splitFreq );
+        prepareCrossoverFilter( highPass[ channel ], juce::dsp::LinkwitzRileyFilterType::highpass, *splitFreq );
     }
 }
 
@@ -219,19 +218,24 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     
     _sampleRate = sampleRate;
 
+    juce::dsp::ProcessSpec spec {
+        sampleRate,
+        ( juce::uint32 ) samplesPerBlock,
+        ( juce::uint32 ) 1 // one filter per channel
+    };
+
+    for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
+        lowPass[ channel ].prepare( spec );
+        highPass[ channel ].prepare( spec );
+
+        prepareCrossoverFilter( lowPass[ channel ],  juce::dsp::LinkwitzRileyFilterType::lowpass,  Parameters::Config::SPLIT_FREQ_DEF );
+        prepareCrossoverFilter( highPass[ channel ], juce::dsp::LinkwitzRileyFilterType::highpass, Parameters::Config::SPLIT_FREQ_DEF );
+    }
+    lowBuffer.resize(( size_t ) samplesPerBlock );
+    highBuffer.resize(( size_t ) samplesPerBlock );
+
     // dispose previously allocated resources
     releaseResources();
-
-    int channelAmount = getTotalNumOutputChannels();
-
-    for ( int i = 0; i < channelAmount; ++i )
-    {
-        lowPassFilters.add ( new juce::IIRFilter());
-        highPassFilters.add( new juce::IIRFilter());
-
-        lowPassFilters [ i ]->setCoefficients( juce::IIRCoefficients::makeLowPass ( sampleRate, Parameters::Config::SPLIT_FREQ_DEF ));
-        highPassFilters[ i ]->setCoefficients( juce::IIRCoefficients::makeHighPass( sampleRate, Parameters::Config::SPLIT_FREQ_DEF ));
-    }
     
     // align values with model
     updateParameters();
@@ -239,8 +243,7 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
 
 void AudioPluginAudioProcessor::releaseResources()
 {
-    lowPassFilters.clear();
-    highPassFilters.clear();
+    // nowt...
 }
 
 /* rendering */
@@ -251,7 +254,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     juce::ScopedNoDenormals noDenormals;
   
     int channelAmount = buffer.getNumChannels();
-    int bufferSize    = buffer.getNumSamples();
+    int bufferSize = buffer.getNumSamples();
+    auto uBufferSize = static_cast<unsigned long>( bufferSize );
     
     float dryMix  = 1.f - *dryWetMix;
     float wetMix  = *dryWetMix;
@@ -283,51 +287,46 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         if ( buffer.getReadPointer( channel ) == nullptr ) {
             continue;
         }
-        auto* channelData = buffer.getWritePointer( channel );
-     
+        
         // process mode 1: EQ based split
 
         if ( splitMode == Parameters::SplitMode::EQ ) {
-            juce::AudioBuffer<float> lowBuffer( channelAmount, bufferSize );
-            juce::AudioBuffer<float> highBuffer( channelAmount, bufferSize );
-    
-            lowBuffer.copyFrom ( channel, 0, buffer, channel, 0, bufferSize );
-            highBuffer.copyFrom( channel, 0, buffer, channel, 0, bufferSize );
 
-            applyDistortion(
-                lowBuffer.getWritePointer( channel ),
-                highBuffer.getWritePointer( channel ),
-                static_cast<unsigned long>( lowBuffer.getNumSamples() ),
-                static_cast<unsigned long>( highBuffer.getNumSamples() )
-            );
+            auto channelBuffer = buffer.getReadPointer( channel );
+            auto low  = lowBuffer.data();
+            auto high = highBuffer.data();
+            
+            std::memcpy( low,  channelBuffer, sizeof( float ) * uBufferSize );
+            std::memcpy( high, channelBuffer, sizeof( float ) * uBufferSize );
 
-            // apply the filtering
+            // apply Linkwitz–Riley filtering for a clean crossover separation
 
-            lowPassFilters [ channel ]->processSamples( lowBuffer.getWritePointer( channel ), bufferSize );
-            highPassFilters[ channel ]->processSamples( highBuffer.getWritePointer ( channel ), bufferSize );
+            juce::dsp::AudioBlock<float> lowBlock( &low,  1, uBufferSize );
+            juce::dsp::AudioBlock<float> highBlock( &high, 1, uBufferSize );
+
+            lowPass[ channel ].process( juce::dsp::ProcessContextReplacing<float>( lowBlock ));
+            highPass[ channel ].process( juce::dsp::ProcessContextReplacing<float>( highBlock ));
+
+            applyDistortion( low, high, uBufferSize, uBufferSize );
 
             // write the effected buffer into the output
     
             for ( int i = 0; i < bufferSize; ++i ) {
-                auto input = buffer.getSample( channel, i ) * dryMix;
+                auto dry = buffer.getSample( channel, i ) * dryMix;
+                auto wet = (( low[ i ] + high [ i ]) * wetMix );
 
-                buffer.setSample(
-                    channel, i,
-                    input + ( ATTENUATION_FACTOR * (
-                        lowBuffer.getSample( channel, i ) +
-                        highBuffer.getSample ( channel, i )
-                    )) * wetMix
-                );
+                buffer.setSample( channel, i, MathUtilities::clamp( dry + wet ));
             }
         }
         else {
             // process mode 2: harmonic bin splitting
 
-            std::vector<float> inBuffer( static_cast<unsigned long>( bufferSize ));
+            auto* channelData = buffer.getWritePointer( channel );
+            std::vector<float> inBuffer( uBufferSize );
 
             if ( blendDry ) {
                 // copy the dry signal at its blend value
-                for ( size_t i = 0; i < static_cast<unsigned long>( bufferSize ); ++i ) {
+                for ( size_t i = 0; i < uBufferSize; ++i ) {
                     inBuffer[ i ] = channelData[ i ] * dryMix;
                 }
             }
@@ -409,7 +408,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                 // sum and window
 
                 for ( size_t i = 0; i < fftSize; ++i ) {
-                    channelState.outputBuffer[ i ] += ( ATTENUATION_FACTOR * ( tempA[ i ] + tempB[ i ])) * window[ i ];
+                    channelState.outputBuffer[ i ] += ( tempA[ i ] + tempB[ i ]) * window[ i ];
                 }
 
                 // write samples to output (for the hopSize)
@@ -429,7 +428,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             }
 
             if ( blendDry ) {
-                for ( size_t i = 0; i < static_cast<unsigned long>( bufferSize ); ++i ) {
+                for ( size_t i = 0; i < uBufferSize; ++i ) {
                     channelData[ i ] += inBuffer[ i ];
                 }
             }

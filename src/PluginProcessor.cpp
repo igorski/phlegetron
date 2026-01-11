@@ -160,6 +160,7 @@ void AudioPluginAudioProcessor::updateParameters()
     } else if ( loDistType == Parameters::DistortionType::WaveFolder ) {
         lowWaveFolder.setInputLevel( *loDistInputLevel );
         lowWaveFolder.setThreshold( *loDistThreshold );
+        lowWaveFolder.setThresholdNegative( *loDistCutoffThreshold );
     }
 
     if ( hiDistType == Parameters::DistortionType::Fuzz ) {
@@ -169,6 +170,7 @@ void AudioPluginAudioProcessor::updateParameters()
     } else if ( hiDistType == Parameters::DistortionType::WaveFolder ) {
         hiWaveFolder.setInputLevel( *hiDistInputLevel );
         hiWaveFolder.setThreshold( *hiDistThreshold );
+        hiWaveFolder.setThresholdNegative( *hiDistCutoffThreshold );
     }
 
     int channelAmount = getTotalNumOutputChannels();

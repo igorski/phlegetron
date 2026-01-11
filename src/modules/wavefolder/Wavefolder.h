@@ -31,10 +31,14 @@ class WaveFolder
         
         float getThreshold();
         void setThreshold( float value );
+
+        float getThresholdNegative();
+        void setThresholdNegative( float value );
         
         void apply( float* channelData, unsigned long bufferSize );
 
     private:
         float _input;
         float _threshold;
+        float _thresholdNegative;
 };

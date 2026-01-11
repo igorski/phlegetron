@@ -39,8 +39,8 @@ void WaveFolder::apply( float* channelData, unsigned long bufferSize )
     
         if ( inputSample > _threshold ) {
             inputSample = _threshold - ( inputSample - _threshold );
-        } else if ( inputSample < -_threshold ) {
-            inputSample = -_threshold - ( inputSample + _threshold );
+        } else if ( inputSample < -_thresholdNegative ) {
+            inputSample = -_thresholdNegative - ( inputSample + _thresholdNegative );
         }
 
         // Alternative: Smooth wavefolding
@@ -72,4 +72,14 @@ float WaveFolder::getThreshold()
 void WaveFolder::setThreshold( float value )
 {
     _threshold = value;
+}
+
+float WaveFolder::getThresholdNegative()
+{
+    _thresholdNegative;
+}
+
+void WaveFolder::setThresholdNegative( float value )
+{
+    _thresholdNegative = value;
 }

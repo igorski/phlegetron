@@ -137,6 +137,8 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         // crossover filter processing
 
         static constexpr int MAX_CHANNELS = 2;
+        static constexpr float ATTENUATION_FACTOR = 1.f / MAX_CHANNELS;
+        
         juce::dsp::LinkwitzRileyFilter<float> lowPass[ MAX_CHANNELS ];
         juce::dsp::LinkwitzRileyFilter<float> highPass[ MAX_CHANNELS ];
         std::vector<float> lowBuffer;
@@ -160,8 +162,6 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         WaveFolder hiWaveFolder;
         WaveShaper lowWaveShaper;
         WaveShaper hiWaveShaper;
-        
-        float ATTENUATION_FACTOR = 0.5f; // two channels (low and hi)
         
         // FFT
 

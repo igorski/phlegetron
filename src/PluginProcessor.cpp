@@ -313,7 +313,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     
             for ( int i = 0; i < bufferSize; ++i ) {
                 auto dry = buffer.getSample( channel, i ) * dryMix;
-                auto wet = (( low[ i ] + high [ i ]) * wetMix );
+                auto wet = ( ATTENUATION_FACTOR * ( low[ i ] + high [ i ])) * wetMix;
 
                 buffer.setSample( channel, i, MathUtilities::clamp( dry + wet ));
             }
@@ -376,6 +376,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                     bool harmonic = false;
                     for ( int n = 1; n <= 12; ++n ) {
                         float h = n * baseFreq;
+                        // @todo modulate 0.03f ? to 0.3 is nicely wicked (at lower freqs)
                         if ( std::abs( freq - h ) < h * 0.03f ) {
                             harmonic = true;
                             break;
@@ -408,7 +409,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                 // sum and window
 
                 for ( size_t i = 0; i < fftSize; ++i ) {
-                    channelState.outputBuffer[ i ] += ( tempA[ i ] + tempB[ i ]) * window[ i ];
+                    channelState.outputBuffer[ i ] += ( ATTENUATION_FACTOR * ( tempA[ i ] + tempB[ i ])) * window[ i ];
                 }
 
                 // write samples to output (for the hopSize)

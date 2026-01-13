@@ -27,6 +27,6 @@ class ParameterUtilities {
         }
 
         static juce::StringArray getDistortionTypeNames() {
-            return { "Waveshaper", "Wavefolder", "Fuzz", "Bit crusher" };
+            return { "Off", "Waveshaper", "Wavefolder", "Fuzz", "Bit crusher" };
         }
 };

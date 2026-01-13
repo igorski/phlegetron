@@ -22,11 +22,11 @@
 
 Fuzz::Fuzz()
 {
-    setInputLevel( 1.0f );
-    setCutOff( Parameters::Config::DIST_CUT_THRESH_DEF );
-    setThreshold( Parameters::Config::DIST_THRESH_DEF );
+    setInputLevel( Parameters::Config::DIST_INPUT_DEF );
+    setCutOff( Parameters::Config::DIST_PARAM_DEF );
+    setThreshold( Parameters::Config::DIST_DRIVE_DEF );
 
-    _amount = 10.f; // provide clipping effect to the input
+    _amount = 3.f; // 10.f; // provide clipping effect to the input
 }
 
 /* public methods */
@@ -86,7 +86,6 @@ void Fuzz::setCutOff( float value )
 {
     _cutoffThreshold = MathUtilities::inverseNormalize( value );
 }
-
 
 float Fuzz::getThreshold()
 {

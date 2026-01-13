@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Bitcrusher.h"
+#include "../../Parameters.h"
 #include "../../utils/MathUtilities.h"
 #include <limits.h>
 #include <math.h>
@@ -23,8 +24,8 @@
 
 BitCrusher::BitCrusher()
 {
-    setAmount( 0.f );
-    setInputLevel ( 1.f );
+    setAmount( Parameters::Config::DIST_DRIVE_DEF );
+    setInputLevel ( Parameters::Config::DIST_INPUT_DEF );
     setOutputLevel( 1.f );
 }
 

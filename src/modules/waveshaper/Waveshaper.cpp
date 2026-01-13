@@ -15,14 +15,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Waveshaper.h"
+#include "../../Parameters.h"
 #include <cmath>
 
 // constructor
 
 WaveShaper::WaveShaper()
 {
-    setAmount( 0.f );
-    setOutputLevel( 1.f );
+    setAmount( Parameters::Config::DIST_DRIVE_DEF );
+    setOutputLevel( Parameters::Config::DIST_INPUT_DEF );
 }
 
 /* public methods */

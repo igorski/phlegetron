@@ -32,18 +32,18 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesPro
 {
     // grab a reference to all automatable parameters and initialize the values (to their defined defaults)
 
-    dryWetMix             = parameters.getRawParameterValue( Parameters::DRY_WET_MIX );
-    splitEnabled          = parameters.getRawParameterValue( Parameters::SPLIT_ENABLED );
-    splitFreq             = parameters.getRawParameterValue( Parameters::SPLIT_FREQ );
-    splitMode             = static_cast<Parameters::SplitMode>( parameters.getRawParameterValue( Parameters::SPLIT_MODE )->load());
-    loDistType            = static_cast<Parameters::DistortionType>( parameters.getRawParameterValue( Parameters::LO_DIST_TYPE )->load());
-    loDistInputLevel      = parameters.getRawParameterValue( Parameters::LO_DIST_INPUT );
-    loDistThreshold       = parameters.getRawParameterValue( Parameters::LO_DIST_THRESH );
-    loDistCutoffThreshold = parameters.getRawParameterValue( Parameters::LO_DIST_CUTOFF );
-    hiDistType            = static_cast<Parameters::DistortionType>( parameters.getRawParameterValue( Parameters::HI_DIST_TYPE )->load());
-    hiDistInputLevel      = parameters.getRawParameterValue( Parameters::HI_DIST_INPUT );
-    hiDistThreshold       = parameters.getRawParameterValue( Parameters::HI_DIST_THRESH );
-    hiDistCutoffThreshold = parameters.getRawParameterValue( Parameters::HI_DIST_CUTOFF );
+    linkEnabled      = parameters.getRawParameterValue( Parameters::LINK_ENABLED );
+    splitFreq        = parameters.getRawParameterValue( Parameters::SPLIT_FREQ );
+    splitMode        = static_cast<Parameters::SplitMode>( parameters.getRawParameterValue( Parameters::SPLIT_MODE )->load());
+    dryWetMix        = parameters.getRawParameterValue( Parameters::DRY_WET_MIX );
+    loDistType       = static_cast<Parameters::DistortionType>( parameters.getRawParameterValue( Parameters::LO_DIST_TYPE )->load());
+    loDistInputLevel = parameters.getRawParameterValue( Parameters::LO_DIST_INPUT );
+    loDistDrive      = parameters.getRawParameterValue( Parameters::LO_DIST_DRIVE );
+    loDistParam      = parameters.getRawParameterValue( Parameters::LO_DIST_PARAM );
+    hiDistType       = static_cast<Parameters::DistortionType>( parameters.getRawParameterValue( Parameters::HI_DIST_TYPE )->load());
+    hiDistInputLevel = parameters.getRawParameterValue( Parameters::HI_DIST_INPUT );
+    hiDistDrive      = parameters.getRawParameterValue( Parameters::HI_DIST_DRIVE );
+    hiDistParam      = parameters.getRawParameterValue( Parameters::HI_DIST_PARAM );
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -156,51 +156,57 @@ void AudioPluginAudioProcessor::updateParameters()
 
     switch ( loDistType )
     {
+        case Parameters::DistortionType::Off:
+            break;
+
         case Parameters::DistortionType::BitCrusher:
             lowBitCrusher.setInputLevel( *loDistInputLevel );
-            lowBitCrusher.setAmount( *loDistThreshold );
+            lowBitCrusher.setAmount( *loDistDrive );
             break;
 
         case Parameters::DistortionType::Fuzz:
             lowFuzz.setInputLevel( *loDistInputLevel );
-            lowFuzz.setThreshold( *loDistThreshold );
-            lowFuzz.setCutOff( *loDistCutoffThreshold );
+            lowFuzz.setThreshold( *loDistDrive );
+            lowFuzz.setCutOff( *loDistParam );
             break;
 
         case Parameters::DistortionType::WaveFolder:
             lowWaveFolder.setInputLevel( *loDistInputLevel );
-            lowWaveFolder.setThreshold( *loDistThreshold );
-            lowWaveFolder.setThresholdNegative( *loDistCutoffThreshold );
+            lowWaveFolder.setThreshold( *loDistDrive );
+            lowWaveFolder.setThresholdNegative( *loDistParam );
             break;
 
         case Parameters::DistortionType::WaveShaper:
             lowWaveShaper.setOutputLevel( *loDistInputLevel );
-            lowWaveShaper.setAmount( *loDistThreshold );
+            lowWaveShaper.setAmount( *loDistDrive );
             break;
     }
 
     switch ( hiDistType )
     {
+        case Parameters::DistortionType::Off:
+            break;
+            
         case Parameters::DistortionType::BitCrusher:
             hiBitCrusher.setInputLevel( *hiDistInputLevel );
-            hiBitCrusher.setAmount( *hiDistThreshold );
+            hiBitCrusher.setAmount( *hiDistDrive );
             break;
 
         case Parameters::DistortionType::Fuzz:
             hiFuzz.setInputLevel( *hiDistInputLevel );
-            hiFuzz.setThreshold( *hiDistThreshold );
-            hiFuzz.setCutOff( *hiDistCutoffThreshold );
+            hiFuzz.setThreshold( *hiDistDrive );
+            hiFuzz.setCutOff( *hiDistParam );
             break;
 
         case Parameters::DistortionType::WaveFolder:
             hiWaveFolder.setInputLevel( *hiDistInputLevel );
-            hiWaveFolder.setThreshold( *hiDistThreshold );
-            hiWaveFolder.setThresholdNegative( *hiDistCutoffThreshold );
+            hiWaveFolder.setThreshold( *hiDistDrive );
+            hiWaveFolder.setThresholdNegative( *hiDistParam );
             break;
 
         case Parameters::DistortionType::WaveShaper:
             hiWaveShaper.setOutputLevel( *hiDistInputLevel );
-            hiWaveShaper.setAmount( *hiDistThreshold );
+            hiWaveShaper.setAmount( *hiDistDrive );
             break;
     }
 

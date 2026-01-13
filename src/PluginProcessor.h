@@ -72,10 +72,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
             params.push_back(
-                std::make_unique<juce::AudioParameterFloat>( Parameters::DRY_WET_MIX, "Dry/wet mix", 0.f, 1.f, 1.f )
-            );
-            params.push_back(
-                std::make_unique<juce::AudioParameterBool>( Parameters::SPLIT_ENABLED, "Split enabled", true )
+                std::make_unique<juce::AudioParameterBool>( Parameters::LINK_ENABLED, "Link enabled", false )
             );
             params.push_back(
                 std::make_unique<juce::AudioParameterChoice>( Parameters::SPLIT_MODE, "Split mode", ParameterUtilities::getSplitModeNames(), 0 )
@@ -86,34 +83,55 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
                     Parameters::Ranges::SPLIT_FREQ_MIN, Parameters::Ranges::SPLIT_FREQ_MAX, Parameters::Config::SPLIT_FREQ_DEF
                 )
             );
+            params.push_back(
+                std::make_unique<juce::AudioParameterFloat>( Parameters::DRY_WET_MIX, "Dry/wet mix", 0.f, 1.f, 1.f )
+            );
 
             // low band distortion
             params.push_back(
-                std::make_unique<juce::AudioParameterChoice>( Parameters::LO_DIST_TYPE, "Low distortion type", ParameterUtilities::getDistortionTypeNames(), 0 )
+                std::make_unique<juce::AudioParameterChoice>(
+                    Parameters::LO_DIST_TYPE, "Low distortion type",
+                    ParameterUtilities::getDistortionTypeNames(), Parameters::Config::DIST_TYPE_DEF_LO
+                )
             );
             params.push_back(
-                std::make_unique<juce::AudioParameterFloat>( Parameters::LO_DIST_INPUT, "Low Input level", 0.f, 1.f, 0.5f )
+                std::make_unique<juce::AudioParameterFloat>(
+                    Parameters::LO_DIST_INPUT, "Low Input level", 0.f, 1.f, Parameters::Config::DIST_INPUT_DEF
+                )
             );
             params.push_back(
-                std::make_unique<juce::AudioParameterFloat>( Parameters::LO_DIST_CUTOFF, "Low Cutoff threshold", 0.f, 1.f, Parameters::Config::DIST_CUT_THRESH_DEF )
+                std::make_unique<juce::AudioParameterFloat>(
+                    Parameters::LO_DIST_DRIVE, "Low drive", 0.f, 1.f, Parameters::Config::DIST_DRIVE_DEF
+                )
             );
             params.push_back(
-                std::make_unique<juce::AudioParameterFloat>( Parameters::LO_DIST_THRESH, "Low Threshold", 0.f, 1.f, Parameters::Config::DIST_THRESH_DEF )
+                std::make_unique<juce::AudioParameterFloat>(
+                    Parameters::LO_DIST_PARAM, "Low param", 0.f, 1.f, Parameters::Config::DIST_PARAM_DEF
+                )
             );
 
             // high band distortion
 
             params.push_back(
-                std::make_unique<juce::AudioParameterChoice>( Parameters::HI_DIST_TYPE, "Hi distortion type", ParameterUtilities::getDistortionTypeNames(), 0 )
+                std::make_unique<juce::AudioParameterChoice>(
+                    Parameters::HI_DIST_TYPE, "Hi distortion type",
+                    ParameterUtilities::getDistortionTypeNames(), Parameters::Config::DIST_TYPE_DEF_HI
+                )
             );
             params.push_back(
-                std::make_unique<juce::AudioParameterFloat>( Parameters::HI_DIST_INPUT, "Hi Input level", 0.f, 1.f, 0.5f )
+                std::make_unique<juce::AudioParameterFloat>(
+                    Parameters::HI_DIST_INPUT, "Hi Input level", 0.f, 1.f, Parameters::Config::DIST_INPUT_DEF
+                )
             );
             params.push_back(
-                std::make_unique<juce::AudioParameterFloat>( Parameters::HI_DIST_CUTOFF, "Hi Cutoff threshold", 0.f, 1.f, Parameters::Config::DIST_CUT_THRESH_DEF )
+                std::make_unique<juce::AudioParameterFloat>(
+                    Parameters::HI_DIST_DRIVE, "Hi drive", 0.f, 1.f, Parameters::Config::DIST_DRIVE_DEF
+                )
             );
             params.push_back(
-                std::make_unique<juce::AudioParameterFloat>( Parameters::HI_DIST_THRESH, "Hi Threshold", 0.f, 1.f, Parameters::Config::DIST_THRESH_DEF )
+                std::make_unique<juce::AudioParameterFloat>(
+                    Parameters::HI_DIST_PARAM, "Hi param", 0.f, 1.f, Parameters::Config::DIST_PARAM_DEF
+                )
             );
             
             return { params.begin(), params.end() };
@@ -182,61 +200,67 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         
         // parameters
 
-        std::atomic<float>* dryWetMix;
-        std::atomic<float>* splitEnabled;
+        std::atomic<float>* linkEnabled;
         std::atomic<float>* splitFreq;
         std::atomic<Parameters::SplitMode> splitMode;
+        std::atomic<float>* dryWetMix;
         std::atomic<Parameters::DistortionType> loDistType;
         std::atomic<float>* loDistInputLevel;
-        std::atomic<float>* loDistThreshold;
-        std::atomic<float>* loDistCutoffThreshold;
+        std::atomic<float>* loDistDrive;
+        std::atomic<float>* loDistParam;
         std::atomic<Parameters::DistortionType> hiDistType;
         std::atomic<float>* hiDistInputLevel;
-        std::atomic<float>* hiDistThreshold;
-        std::atomic<float>* hiDistCutoffThreshold;
-
+        std::atomic<float>* hiDistDrive;
+        std::atomic<float>* hiDistParam;
+        
         inline void applyDistortion(
             float* lowChannelData, float* highChannelData, unsigned long lowChannelSize, unsigned long highChannelSize
         ) {
-            bool splitProcessing = ParameterUtilities::floatToBool( *splitEnabled );
+            bool jointProcessing = ParameterUtilities::floatToBool( *linkEnabled );
 
             switch ( loDistType )
             {
+                case Parameters::DistortionType::Off:
+                    break;
+                
                 case Parameters::DistortionType::BitCrusher:
                     lowBitCrusher.apply( lowChannelData, lowChannelSize );
-                    if ( !splitProcessing ) {
+                    if ( jointProcessing ) {
                         lowBitCrusher.apply( highChannelData, highChannelSize );
                     }
                     break;
                 
                 case Parameters::DistortionType::Fuzz:
                     lowFuzz.apply( lowChannelData, lowChannelSize );
-                    if ( !splitProcessing ) {
+                    if ( jointProcessing ) {
                         lowFuzz.apply( highChannelData, highChannelSize );
                     }
                     break;
 
                 case Parameters::DistortionType::WaveFolder:
                     lowWaveFolder.apply( lowChannelData, lowChannelSize );
-                    if ( !splitProcessing ) {
+                    if ( jointProcessing ) {
                         lowWaveFolder.apply( highChannelData, highChannelSize );
                     }
                     break;
 
                 case Parameters::DistortionType::WaveShaper:
                     lowWaveShaper.apply( lowChannelData, lowChannelSize );
-                    if ( !splitProcessing ) {
+                    if ( jointProcessing ) {
                         lowWaveShaper.apply( highChannelData, highChannelSize );
                     }
                     break;
             }
 
-            if ( !splitProcessing ) {
+            if ( jointProcessing ) {
                 return; // hi channel processed above
             }
 
             switch ( hiDistType )
             {
+                case Parameters::DistortionType::Off:
+                    break;
+
                 case Parameters::DistortionType::BitCrusher:
                     hiBitCrusher.apply( highChannelData, highChannelSize );
                     break;

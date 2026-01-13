@@ -21,8 +21,8 @@
 
 WaveFolder::WaveFolder()
 {
-    setInputLevel( 1.0f );
-    setThreshold( Parameters::Config::DIST_THRESH_DEF );
+    setInputLevel( Parameters::Config::DIST_INPUT_DEF );
+    setThreshold( Parameters::Config::DIST_DRIVE_DEF );
 }
 
 /* public methods */

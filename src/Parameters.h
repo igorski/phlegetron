@@ -19,24 +19,24 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 namespace Parameters {
-    static juce::String DRY_WET_MIX     = "dryWetMix";
-    static juce::String SPLIT_ENABLED   = "splitEnabled";
-    static juce::String SPLIT_FREQ      = "splitFreq";
-    static juce::String SPLIT_MODE      = "splitMode";
+    static juce::String DRY_WET_MIX   = "dryWetMix";
+    static juce::String LINK_ENABLED  = "linkEnabled";
+    static juce::String SPLIT_FREQ    = "splitFreq";
+    static juce::String SPLIT_MODE    = "splitMode";
     
     // low distortion properties
 
-    static juce::String LO_DIST_TYPE   = "loType";
-    static juce::String LO_DIST_INPUT  = "loInput";
-    static juce::String LO_DIST_THRESH = "loThreshold"; // @todo : "drive" ?
-    static juce::String LO_DIST_CUTOFF = "loCutoff";
+    static juce::String LO_DIST_TYPE  = "loType";
+    static juce::String LO_DIST_INPUT = "loInput";
+    static juce::String LO_DIST_DRIVE = "loDrive";
+    static juce::String LO_DIST_PARAM = "loParam";
 
     // high distortion properties (mirrored from low)
 
-    static juce::String HI_DIST_TYPE   = "hiType";
-    static juce::String HI_DIST_INPUT  = "hiInput";
-    static juce::String HI_DIST_THRESH = "hiThreshold"; // @todo : "drive" ?
-    static juce::String HI_DIST_CUTOFF = "hiCutoff";
+    static juce::String HI_DIST_TYPE  = "hiType";
+    static juce::String HI_DIST_INPUT = "hiInput";
+    static juce::String HI_DIST_DRIVE = "hiDrive";
+    static juce::String HI_DIST_PARAM = "hiParam";
 
     namespace Ranges {
         static float SPLIT_FREQ_MIN = 20.f;
@@ -49,15 +49,19 @@ namespace Parameters {
     };
 
     enum class DistortionType {
-        WaveShaper = 0,
+        Off = 0,
+        WaveShaper,
         WaveFolder,
         Fuzz,
         BitCrusher,
     };
 
     namespace Config {
-        static float SPLIT_FREQ_DEF      = 110.f;
-        static float DIST_CUT_THRESH_DEF = 0.02f;
-        static float DIST_THRESH_DEF     = 0.1f;
+        static int DIST_TYPE_DEF_LO = static_cast<int>( DistortionType::WaveShaper );
+        static int DIST_TYPE_DEF_HI = static_cast<int>( DistortionType::WaveFolder );
+        static float DIST_INPUT_DEF = 1.f;
+        static float SPLIT_FREQ_DEF = 440.f;
+        static float DIST_DRIVE_DEF = 0.5f;
+        static float DIST_PARAM_DEF = 0.02f;
     }
 }

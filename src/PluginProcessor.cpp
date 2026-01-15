@@ -180,6 +180,7 @@ void AudioPluginAudioProcessor::updateParameters()
         case Parameters::DistortionType::WaveShaper:
             lowWaveShaper.setOutputLevel( *loDistInputLevel );
             lowWaveShaper.setAmount( *loDistDrive );
+            lowWaveShaper.setShape( *loDistParam );
             break;
     }
 
@@ -209,6 +210,7 @@ void AudioPluginAudioProcessor::updateParameters()
         case Parameters::DistortionType::WaveShaper:
             hiWaveShaper.setOutputLevel( *hiDistInputLevel );
             hiWaveShaper.setAmount( *hiDistDrive );
+            hiWaveShaper.setShape( *hiDistParam );
             break;
     }
 

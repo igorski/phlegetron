@@ -16,6 +16,7 @@
  */
 #include "Waveshaper.h"
 #include "../../Parameters.h"
+#include "../../utils/MathUtilities.h"
 #include <cmath>
 
 // constructor
@@ -23,6 +24,7 @@
 WaveShaper::WaveShaper()
 {
     setAmount( Parameters::Config::DIST_DRIVE_DEF );
+    setShape( Parameters::Config::DIST_PARAM_DEF );
     setOutputLevel( Parameters::Config::DIST_INPUT_DEF );
 }
 
@@ -33,16 +35,17 @@ void WaveShaper::apply( float* channelData, unsigned long bufferSize )
     for ( size_t i = 0; i < bufferSize; ++i )
     {
         auto input = channelData[ i ];
-        channelData[ i ] =  (( 1.0f + _multiplier ) * input / ( 1.0f + _multiplier * std::abs( input ))) * _level;
+        
+        float sign = std::copysign( 1.0f, input );
+        input = sign * std::pow( std::abs( input ), _shape );
+
+        float shaped = (( 1.0f + _multiplier ) * input ) / ( 1.0f + _multiplier * std::abs( input ));
+
+        channelData[ i ] = shaped * _level;
     }
 }
 
-/* getters / setters */
-
-float WaveShaper::getAmount()
-{
-    return _amount;
-}
+/* setters */
 
 void WaveShaper::setAmount( float value )
 {
@@ -50,9 +53,9 @@ void WaveShaper::setAmount( float value )
     _multiplier = 2.0f * _amount / ( 1.0f - fmin( 0.99999f, _amount ));
 }
 
-float WaveShaper::getOutputLevel()
+void WaveShaper::setShape( float value )
 {
-    return _level;
+    _shape = juce::jmap( MathUtilities::inverseNormalize( value ), 0.25f, 4.0f );   
 }
 
 void WaveShaper::setOutputLevel( float value )

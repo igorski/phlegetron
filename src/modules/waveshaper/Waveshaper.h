@@ -21,14 +21,14 @@ class WaveShaper
     public:
         WaveShaper();
 
-        float getAmount();
-        void setAmount( float value ); // range between -1 and +1
-        float getOutputLevel();
+        void setAmount( float value );
+        void setShape( float value );
         void setOutputLevel( float value );
         void apply( float* channelData, unsigned long bufferSize );
 
     private:
         float _amount;
+        float _shape;
         float _multiplier;
         float _level;
 };

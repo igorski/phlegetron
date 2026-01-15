@@ -32,13 +32,4 @@ class MathUtilities
         static inline float clamp( float value ) {
             return juce::jlimit( -1.0f, 1.0f, value );
         }
-
-        /**
-         * convenience method to scale given value and its expected maxValue against
-         * an arbitrary range (defined by maxCompareValue in relation to maxValue)
-         */
-        static float scale( float value, float maxValue, float maxCompareValue ) {
-            float ratio = maxCompareValue / maxValue;
-            return ( float ) ( std::min( maxValue, value ) * ratio );
-        }
 };

@@ -160,8 +160,9 @@ void AudioPluginAudioProcessor::updateParameters()
             break;
 
         case Parameters::DistortionType::BitCrusher:
-            lowBitCrusher.setInputLevel( *loDistInputLevel );
-            lowBitCrusher.setAmount( *loDistDrive );
+            lowBitCrusher.setLevel( *loDistInputLevel );
+            lowBitCrusher.setDownsampling( *loDistDrive );
+            lowBitCrusher.setAmount( *loDistParam );
             break;
 
         case Parameters::DistortionType::Fuzz:
@@ -188,8 +189,9 @@ void AudioPluginAudioProcessor::updateParameters()
             break;
             
         case Parameters::DistortionType::BitCrusher:
-            hiBitCrusher.setInputLevel( *hiDistInputLevel );
-            hiBitCrusher.setAmount( *hiDistDrive );
+            hiBitCrusher.setLevel( *hiDistInputLevel );
+            hiBitCrusher.setDownsampling( *hiDistDrive );
+            hiBitCrusher.setAmount( *hiDistParam );
             break;
 
         case Parameters::DistortionType::Fuzz:

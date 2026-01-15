@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2026 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
  */
 #include "Bitcrusher.h"
 #include "../../Parameters.h"
-#include "../../utils/MathUtilities.h"
 #include <limits.h>
 #include <math.h>
 
@@ -24,33 +23,50 @@
 
 BitCrusher::BitCrusher()
 {
+    setLevel( Parameters::Config::DIST_INPUT_DEF );
     setAmount( Parameters::Config::DIST_DRIVE_DEF );
-    setInputLevel ( Parameters::Config::DIST_INPUT_DEF );
-    setOutputLevel( 1.f );
+    setDownsampling( Parameters::Config::DIST_PARAM_DEF );
 }
 
 BitCrusher::~BitCrusher()
 {
-
+    // nowt...
 }
 
 /* public methods */
 
 void BitCrusher::apply( float* channelData, unsigned long bufferSize )
 {
-    // sound should not be crushed ? do nothing
-    if ( _bits == 16 ) {
-        return;
-    }
-
-    int bitsPlusOne = _bits + 1;
-
     for ( size_t i = 0; i < bufferSize; ++i )
     {
-        short input = ( short ) (( channelData[ i ] * _inputMix ) * SHRT_MAX );
-        short prevent_offset = ( short )( -1 >> bitsPlusOne );
-        input &= ( -1 << ( 16 - _bits ));
-        channelData[ i ] = (( input + prevent_offset ) * _outputMix ) / SHRT_MAX;
+        float input = channelData[ i ];
+
+        int jitter = juce::Random::getSystemRandom().nextInt( int( _jitterAmount * _downsampleBase ) + 1 );
+        int effectiveDownsample = juce::jmax( 1, _downsampleBase + jitter );
+
+        if ( ++_sampleCounter >= effectiveDownsample )
+        {
+            _sampleCounter = 0;
+
+            float noise = input + ( juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f ) * _noiseAmount;
+
+            // apply bit reduction
+
+            float scaled = noise * _levels;
+            float crushed = std::floor( scaled ) / _levels;
+
+            // apply wrap drive
+            // note: we apply crush _amount to give down sampling param extra modulation options
+
+            crushed *= 1.0f + _wrapDrive * ( _amount * 4.0f );
+            crushed = std::fmod( crushed + 1.0f, 2.0f ) - 1.0f;
+
+            // storing lastSample as local state will "bleed across channels" (unless Bitcrusher has
+            // an instance per channel), but that is fine as it adds another nice layer of unpredictability!!
+
+            _lastSample = crushed;
+        }
+        channelData[ i ] = _lastSample * _mixLevel;
     }
 }
 
@@ -58,26 +74,21 @@ void BitCrusher::apply( float* channelData, unsigned long bufferSize )
 
 void BitCrusher::setAmount( float value )
 {
-    // invert the range 0 == max bits (no distortion), 1 == min bits (severely distorted)
-    _amount = abs( value - 1.f );
-
-    calcBits();
+    _amount = value;
+    _bits   = juce::jlimit( MIN_BITS, MAX_BITS, value );
+    _levels = std::pow( 2.0f, _bits );
 }
 
-void BitCrusher::setInputLevel( float value )
+void BitCrusher::setDownsampling( float factor )
 {
-    _inputMix = juce::jlimit( 0.0f, 1.0f, value );
+    _crush        = juce::jlimit( 0.0f, 1.0f, factor );
+    _jitterAmount = _crush * 0.6f;
+    _noiseAmount  = _crush * 0.02f;
+    _wrapDrive    = _crush * ( MAX_BITS - _bits) / ( MAX_BITS - 1 );
+    _downsampleBase = 1 + int( _crush * _crush * 80.0f );
 }
 
-void BitCrusher::setOutputLevel( float value )
+void BitCrusher::setLevel( float value )
 {
-    _outputMix = juce::jlimit( 0.0f, 1.0f, value );
-}
-
-/* private methods */
-
-void BitCrusher::calcBits()
-{
-    // scale float to 1 - 16 bit range
-    _bits = ( int ) floor( MathUtilities::scale( _amount, 1, 15 )) + 1;
+    _mixLevel = juce::jlimit( 0.0f, 1.0f, value );
 }

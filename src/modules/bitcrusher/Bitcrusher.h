@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2026 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,21 +20,29 @@
 
 class BitCrusher
 {
+    static constexpr float MAX_BITS = 16.f;
+    static constexpr float MIN_BITS = 1.f;
+
     public:
         BitCrusher();
         ~BitCrusher();
 
         void apply( float* channelData, unsigned long bufferSize );
 
-        void setAmount( float value ); // range between -1 to +1
-        void setInputLevel( float value );
-        void setOutputLevel( float value );
+        void setAmount( float value );
+        void setDownsampling( float value );
+        void setLevel( float value );
 
     private:
-        int _bits; // we scale the amount to integers in the 1-16 range
+        float _bits; // amount scaled within 1 - 16 range
+        float _mixLevel;
         float _amount;
-        float _inputMix;
-        float _outputMix;
-
-        void calcBits();
+        float _crush;
+        float _levels;
+        int _downsampleBase;
+        float _jitterAmount;
+        float _noiseAmount;
+        float _wrapDrive;
+        int _sampleCounter = 0;
+        float _lastSample = 0.0f;
 };

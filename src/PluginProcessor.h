@@ -152,6 +152,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         bool alignWithSequencer( juce::Optional<juce::AudioPlayHead::PositionInfo> positionInfo );
         
     private:
+
         // crossover filter processing
 
         static constexpr int MAX_CHANNELS = 2;

@@ -277,7 +277,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     const float baseFreq = splitFreqSmoothed.getNextValue();
     splitFreqSmoothed.skip( bufferSize );
 
-    for ( int channel = 0; channel < channelAmount; ++channel ) {
+    for ( int channel = 0; channel < MAX_CHANNELS; ++channel ) {
         lowPass[ channel ].setCutoffFrequency( baseFreq );
         highPass[ channel ].setCutoffFrequency( baseFreq );
     }
@@ -310,6 +310,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             continue;
         }
         
+        int channelNum = channel % MAX_CHANNELS; // keep in range of modules allocated to MAX_CHANNELS
+
         // process mode 1: EQ based split
 
         if ( splitMode == Parameters::SplitMode::EQ ) {
@@ -326,8 +328,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             juce::dsp::AudioBlock<float> lowBlock( &low,  1, uBufferSize );
             juce::dsp::AudioBlock<float> highBlock( &high, 1, uBufferSize );
 
-            lowPass[ channel ].process( juce::dsp::ProcessContextReplacing<float>( lowBlock ));
-            highPass[ channel ].process( juce::dsp::ProcessContextReplacing<float>( highBlock ));
+            lowPass[ channelNum ].process( juce::dsp::ProcessContextReplacing<float>( lowBlock ));
+            highPass[ channelNum ].process( juce::dsp::ProcessContextReplacing<float>( highBlock ));
 
             applyDistortion( low, high, uBufferSize, uBufferSize );
 
@@ -353,9 +355,9 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                 }
             }
             
-            static std::array<ChannelState, 2> channelStates;
+            static std::array<ChannelState, MAX_CHANNELS> channelStates;
 
-            auto& channelState = channelStates[ static_cast<unsigned long>( channel )];
+            auto& channelState = channelStates[ static_cast<unsigned long>( channelNum )];
             if ( !channelState.initialised ) {
                 channelState.inputBuffer.assign ( fftSize, 0.0f );
                 channelState.outputBuffer.assign( fftSize, 0.0f );

@@ -24,8 +24,8 @@
 BitCrusher::BitCrusher()
 {
     setLevel( Parameters::Config::DIST_INPUT_DEF );
-    setAmount( Parameters::Config::DIST_DRIVE_DEF );
-    setDownsampling( Parameters::Config::DIST_PARAM_DEF );
+    setDownsampling( Parameters::Config::DIST_DRIVE_DEF );
+    setAmount( Parameters::Config::DIST_PARAM_DEF );
 }
 
 BitCrusher::~BitCrusher()
@@ -37,6 +37,8 @@ BitCrusher::~BitCrusher()
 
 void BitCrusher::apply( float* channelData, unsigned long bufferSize )
 {
+    float wrapDrive = _crush * ( MAX_BITS - _bits) / ( MAX_BITS - 1 );
+
     for ( size_t i = 0; i < bufferSize; ++i )
     {
         float input = channelData[ i ];
@@ -56,9 +58,10 @@ void BitCrusher::apply( float* channelData, unsigned long bufferSize )
             float crushed = std::floor( scaled ) / _levels;
 
             // apply wrap drive
-            // note: we apply crush _amount to give down sampling param extra modulation options
+            // note: we apply crush _amount here to so we can use the this value
+            // to make down sampling add extra noise to the effect for more modulation fun
 
-            crushed *= 1.0f + _wrapDrive * ( _amount * 4.0f );
+            crushed *= 1.0f + wrapDrive * ( _amount * 4.0f );
             crushed = std::fmod( crushed + 1.0f, 2.0f ) - 1.0f;
 
             // storing lastSample as local state will "bleed across channels" (unless Bitcrusher has
@@ -81,10 +84,9 @@ void BitCrusher::setAmount( float value )
 
 void BitCrusher::setDownsampling( float factor )
 {
-    _crush        = juce::jlimit( 0.0f, 1.0f, factor );
-    _jitterAmount = _crush * 0.6f;
-    _noiseAmount  = _crush * 0.02f;
-    _wrapDrive    = _crush * ( MAX_BITS - _bits) / ( MAX_BITS - 1 );
+    _crush          = juce::jlimit( 0.0f, 1.0f, factor );
+    _jitterAmount   = _crush * 0.6f;
+    _noiseAmount    = _crush * 0.02f;
     _downsampleBase = 1 + int( _crush * _crush * 80.0f );
 }
 

@@ -42,7 +42,6 @@ class BitCrusher
         int _downsampleBase;
         float _jitterAmount;
         float _noiseAmount;
-        float _wrapDrive;
         int _sampleCounter = 0;
         float _lastSample = 0.0f;
 };

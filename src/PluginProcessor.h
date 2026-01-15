@@ -159,6 +159,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         
         juce::dsp::LinkwitzRileyFilter<float> lowPass[ MAX_CHANNELS ];
         juce::dsp::LinkwitzRileyFilter<float> highPass[ MAX_CHANNELS ];
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> splitFreqSmoothed;
         std::vector<float> lowBuffer;
         std::vector<float> highBuffer;
 

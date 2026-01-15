@@ -215,11 +215,7 @@ void AudioPluginAudioProcessor::updateParameters()
             hiWaveShaper.setShape( *hiDistParam );
             break;
     }
-
-    for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
-        prepareCrossoverFilter( lowPass[ channel ],  juce::dsp::LinkwitzRileyFilterType::lowpass,  *splitFreq );
-        prepareCrossoverFilter( highPass[ channel ], juce::dsp::LinkwitzRileyFilterType::highpass, *splitFreq );
-    }
+    splitFreqSmoothed.setTargetValue( *splitFreq );
 }
 
 /* resource management */
@@ -229,6 +225,9 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     juce::ignoreUnused( samplesPerBlock );
     
     _sampleRate = sampleRate;
+
+    splitFreqSmoothed.reset( sampleRate, 0.02 );
+    splitFreqSmoothed.setCurrentAndTargetValue( *splitFreq );
 
     juce::dsp::ProcessSpec spec {
         sampleRate,
@@ -240,8 +239,8 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
         lowPass[ channel ].prepare( spec );
         highPass[ channel ].prepare( spec );
 
-        prepareCrossoverFilter( lowPass[ channel ],  juce::dsp::LinkwitzRileyFilterType::lowpass,  Parameters::Config::SPLIT_FREQ_DEF );
-        prepareCrossoverFilter( highPass[ channel ], juce::dsp::LinkwitzRileyFilterType::highpass, Parameters::Config::SPLIT_FREQ_DEF );
+        prepareCrossoverFilter( lowPass[ channel ],  juce::dsp::LinkwitzRileyFilterType::lowpass,  splitFreqSmoothed.getCurrentValue() );
+        prepareCrossoverFilter( highPass[ channel ], juce::dsp::LinkwitzRileyFilterType::highpass, splitFreqSmoothed.getCurrentValue() );
     }
     lowBuffer.resize(( size_t ) samplesPerBlock );
     highBuffer.resize(( size_t ) samplesPerBlock );
@@ -273,10 +272,21 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     float wetMix  = *dryWetMix;
     bool blendDry = dryMix > 0.f;
 
+    // update filters with smoothed frequency changes to prevent crackling
+
+    const float baseFreq = splitFreqSmoothed.getNextValue();
+    splitFreqSmoothed.skip( bufferSize );
+
+    for ( int channel = 0; channel < channelAmount; ++channel ) {
+        lowPass[ channel ].setCutoffFrequency( baseFreq );
+        highPass[ channel ].setCutoffFrequency( baseFreq );
+    }
+
+    // FFT operations related
+
     const int fftOrder    = 11; // 2048-point FFT
     const int fftSize     = 1 << fftOrder;
     constexpr int hopSize = fftSize / 2;
-    const float baseFreq  = *splitFreq;
 
     static juce::dsp::FFT fft( fftOrder );
 

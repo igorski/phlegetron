@@ -23,22 +23,16 @@ class WaveFolder
     public:
         WaveFolder();
 
-        float getAmount();
-        void setAmount( float value );
-
-        float getInputLevel();
-        void setInputLevel( float value );
-        
-        float getThreshold();
+        void setLevel( float value );
+        void setDrive( float value );
         void setThreshold( float value );
-
-        float getThresholdNegative();
         void setThresholdNegative( float value );
         
         void apply( float* channelData, unsigned long bufferSize );
 
     private:
-        float _input;
+        float _level;
+        float _drive;
         float _threshold;
         float _thresholdNegative;
 };

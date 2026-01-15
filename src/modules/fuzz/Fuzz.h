@@ -23,16 +23,9 @@ class Fuzz
     public:
         Fuzz();
 
-        float getAmount();
         void setAmount( float value );
-
-        float getInputLevel();
         void setInputLevel( float value );
-
-        float getCutOff();
         void setCutOff( float value );
-        
-        float getThreshold();
         void setThreshold( float value );
         
         void apply( float* channelData, unsigned long bufferSize );

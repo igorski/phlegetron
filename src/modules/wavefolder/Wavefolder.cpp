@@ -21,21 +21,21 @@
 
 WaveFolder::WaveFolder()
 {
-    setInputLevel( Parameters::Config::DIST_INPUT_DEF );
+    setLevel( Parameters::Config::DIST_INPUT_DEF );
+    setDrive( Parameters::Config::DIST_DRIVE_DEF );
     setThreshold( Parameters::Config::DIST_DRIVE_DEF );
+    setThresholdNegative( Parameters::Config::DIST_PARAM_DEF );
 }
 
 /* public methods */
 
 void WaveFolder::apply( float* channelData, unsigned long bufferSize )
 {
-    float gain = _input * 10.f;
-
     for ( size_t i = 0; i < bufferSize; ++i )
     {
-        float inputSample = channelData[ i ] * gain;
+        float inputSample = channelData[ i ] * _drive;
 
-        // Hard wavefolding
+        // Hard (asymetric) wavefolding
     
         if ( inputSample > _threshold ) {
             inputSample = _threshold - ( inputSample - _threshold );
@@ -46,37 +46,25 @@ void WaveFolder::apply( float* channelData, unsigned long bufferSize )
         // Alternative: Smooth wavefolding
         // inputSample = std::tanh( inputSample / _threshold ) * _threshold;
 
-        inputSample = juce::jlimit( -1.0f, 1.0f, inputSample );
-
-        channelData[ i ] = inputSample;
+        channelData[ i ] = juce::jlimit( -1.0f, 1.0f, inputSample ) * _level;
     }
 }
 
-/* getters / setters */
+/* setters */
 
-float WaveFolder::getInputLevel()
+void WaveFolder::setLevel( float value )
 {
-    return _input;
+    _level = value;
 }
 
-void WaveFolder::setInputLevel( float value )
+void WaveFolder::setDrive( float value )
 {
-    _input = value;
-}
-
-float WaveFolder::getThreshold()
-{
-    return _threshold;
+    _drive = juce::jmap( value, 1.f, 10.f );
 }
 
 void WaveFolder::setThreshold( float value )
 {
     _threshold = value;
-}
-
-float WaveFolder::getThresholdNegative()
-{
-    return _thresholdNegative;
 }
 
 void WaveFolder::setThresholdNegative( float value )

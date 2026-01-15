@@ -36,40 +36,32 @@ void Fuzz::apply( float* channelData, unsigned long bufferSize )
     for ( size_t i = 0; i < bufferSize; ++i )
     {
         float inputSample = channelData[ i ] * _input;
+        float absSample   = std::abs( inputSample ); // level used in threshold comparison
 
-        // Absolute value of the sample to determine the signal level
-        float absSample = std::abs( inputSample );
-
-        // Apply fuzz distortion when the signal is above the squareWaveThreshold
-        if ( absSample > _squareWaveThreshold ) {
-            // Hard clip to fuzz
+        if ( absSample > _squareWaveThreshold )
+        {
+            // signal is above threshold, hard clip it!
             inputSample = juce::jlimit( -1.0f, 1.0f, _amount * inputSample );
-        } else if ( absSample > _cutoffThreshold ) {
-            // Convert signal to a square wave for low signal levels
+        
+        }
+        else if ( absSample > _cutoffThreshold )
+        {
+            // when between square wave and cutoff thresholds, the signal should become a square wave
             inputSample = inputSample > 0.0f ? 1.0f : -1.0f;
-        } else {
-            // Below the cutoff threshold, output silence
+        }
+        else {
+            // signal is below the cutoff threshold, make it silent
             inputSample = 0.0f;
         }
         channelData[ i ] = inputSample;
     }
 }
 
-/* getters / setters */
-
-float Fuzz::getAmount()
-{
-    return _amount;
-}
+/*  setters */
 
 void Fuzz::setAmount( float value )
 {
     _amount = value;
-}
-
-float Fuzz::getInputLevel()
-{
-    return _input;
 }
 
 void Fuzz::setInputLevel( float value )
@@ -77,19 +69,9 @@ void Fuzz::setInputLevel( float value )
     _input = value;
 }
 
-float Fuzz::getCutOff()
-{
-    return MathUtilities::inverseNormalize( _cutoffThreshold );
-}
-
 void Fuzz::setCutOff( float value )
 {
     _cutoffThreshold = MathUtilities::inverseNormalize( value );
-}
-
-float Fuzz::getThreshold()
-{
-    return _squareWaveThreshold;
 }
 
 void Fuzz::setThreshold( float value )

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2024 Igor Zinken https://www.igorski.nl
+# Copyright (c) 2024-2026 Igor Zinken https://www.igorski.nl
 # Built using the JUCE framework https://github.com/juce-framework/JUCE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,9 +19,9 @@ cmake_minimum_required(VERSION 3.22)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
-set(PROJECT_NAME "distortion") # equals build target
+set(PROJECT_NAME "phlegetron") # equals build target
 set(PROJECT_VERSION 1.0.0)
-set(PLUGIN_NAME "Distortion")
+set(PLUGIN_NAME "Phlegetron")
 
 ######################
 # JUCE configuration #
@@ -134,10 +134,10 @@ target_sources(${PROJECT_NAME}
 # static library. These source files can be of any kind (wav data, images, fonts, icons etc.).
 # Conversion to binary-data will happen when your target is built.
 
-# juce_add_binary_data(PluginResources SOURCES
-#     design/resources/background.png
-#     design/resources/version.png
-# )
+juce_add_binary_data(PluginResources SOURCES
+    design/resources/background.png
+    design/resources/version.png
+)
 
 # `target_link_libraries` links libraries and JUCE modules to other libraries or executables. Here,
 # we're linking our executable target to the `juce::juce_audio_utils` module. Inter-module
@@ -147,7 +147,7 @@ target_sources(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
-        # PluginResources
+        PluginResources
         juce::juce_audio_utils
         juce::juce_dsp
     PUBLIC

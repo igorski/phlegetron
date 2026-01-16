@@ -192,11 +192,15 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             int writePos = 0;
             bool initialised = false;
         };
+
+        static constexpr float HARMONIC_DETECTION_THRESHOLD = 0.03f; // 0.03f
         
         double _sampleRate;
         
-        bool isPlaying  = false;
-        int timeSigNumerator   = 4;
+        // playback, tempo and time signature
+
+        bool isPlaying = false;
+        int timeSigNumerator = 4;
         int timeSigDenominator = 4;
         double tempo = 120.0;
         

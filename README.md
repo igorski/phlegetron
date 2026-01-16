@@ -1,8 +1,11 @@
-# {PLUGIN}
+# Phlegetron
 
-A VST audio plugin that is {DESCRIPTION}
+An audio plugin that provides multiple distortion effects with simple parameter control. The distortion can operate
+on two independent channels, either split by a crossover frequency or by harmonic bins. Tweaking the controls should
+allow you to tune in to specific frequencies for creating either pleasing or disturbing harmonic distortion, depending
+on what takes your fancy.
 
-{PLUGIN} was built using the [JUCE framework](https://github.com/juce-framework/JUCE).
+Phlegetron was built using the [JUCE framework](https://github.com/juce-framework/JUCE).
 
 ## The [Issue Tracker](https://github.com/igorski/distortion/issues) is your point of contact
 

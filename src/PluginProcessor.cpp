@@ -400,8 +400,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                     bool harmonic = false;
                     for ( int n = 1; n <= 12; ++n ) {
                         float h = n * baseFreq;
-                        // @todo modulate 0.03f ? to 0.3 is nicely wicked (at lower freqs)
-                        if ( std::abs( freq - h ) < h * 0.03f ) {
+                        if ( std::abs( freq - h ) < h * HARMONIC_DETECTION_THRESHOLD ) {
                             harmonic = true;
                             break;
                         }

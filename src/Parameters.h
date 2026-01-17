@@ -62,6 +62,6 @@ namespace Parameters {
         static float DIST_INPUT_DEF = 1.f;
         static float SPLIT_FREQ_DEF = 440.f;
         static float DIST_DRIVE_DEF = 0.5f;
-        static float DIST_PARAM_DEF = 0.02f;
+        static float DIST_PARAM_DEF = 0.70f;
     }
 }

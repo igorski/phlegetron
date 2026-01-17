@@ -40,3 +40,17 @@ After which you can run:
 ```
 cmake --build
 ```
+
+### Signing the plugin on macOS
+
+You will need to have your code signing set up appropriately. Assuming you have set up your Apple Developer account, you can find your signing identity like so:
+
+```
+security find-identity -p codesigning -v 
+```
+
+From which you can take your name and team id (the code between parentheses) and pass them to the build script like so:
+
+```
+sh build.sh --team_id TEAM_ID --identity "YOUR_NAME"
+```

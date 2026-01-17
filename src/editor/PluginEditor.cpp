@@ -45,7 +45,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor( AudioPluginAud
     hiDistDriveAtt = createControl( Parameters::HI_DIST_DRIVE, hiDistDriveControl, false );
     hiDistParamAtt = createControl( Parameters::HI_DIST_PARAM, hiDistParamControl, false );
 
-    largeRotaryLNF.setStrokeSize( 4.5f );
+    largeRotaryLNF.setStrokeSize( 6.0f );
     smallRotaryLNF.setStrokeSize( 4.0f );
 
     splitFreqControl.setLookAndFeel( &largeRotaryLNF );
@@ -127,17 +127,18 @@ void AudioPluginAudioProcessorEditor::paint( juce::Graphics& g )
 
 void AudioPluginAudioProcessorEditor::resized()
 {
-    int loDistControlX = 25;
-    int hiDistControlX = 218;
-    int loDistSlidersX = loDistControlX - 8;
-    int hiDistSlidersX = hiDistControlX - 8;
-    int distSectionY   = 98;
-    int distSlidersY   = distSectionY + 130;
+    int loDistControlX = 27;
+    int hiDistControlX = 220;
+    int loDistSlidersX = loDistControlX - 10;
+    int hiDistSlidersX = hiDistControlX - 10;
+    int distSectionY   = 100;
+    int distSlidersY   = distSectionY + 128;
+    int modeWidth      = 65;
 
     linkEnabledControl.setBounds( 159, 319, Styles::CHECKBOX_SIZE, Styles::CHECKBOX_SIZE );
-    splitFreqControl.setBounds ( 107, 82, Styles::LARGE_ROTARY_SIZE, Styles::LARGE_ROTARY_SIZE );
-    splitModeControl.setBounds( scaledWidth / 2 - Styles::ROTARY_SIZE / 2, 170, Styles::ROTARY_SIZE, Styles::ROTARY_SIZE );
-    dryWetControl.setBounds( scaledWidth / 2 - Styles::SLIDER_WIDTH / 2, scaledHeight - 40, Styles::SLIDER_WIDTH, Styles::SLIDER_HEIGHT );
+    splitFreqControl.setBounds ( 111, 86, Styles::LARGE_ROTARY_SIZE, Styles::LARGE_ROTARY_SIZE );
+    splitModeControl.setBounds( scaledWidth / 2 - modeWidth / 2, 171, modeWidth, modeWidth );
+    dryWetControl.setBounds( scaledWidth / 2 - Styles::SLIDER_WIDTH / 2, scaledHeight - 41, Styles::SLIDER_WIDTH, Styles::SLIDER_HEIGHT );
     
     loDistTypeControl.setBounds( loDistControlX, distSectionY, Styles::ROTARY_SIZE, Styles::ROTARY_SIZE );
     loDistInputControl.setBounds( loDistSlidersX, distSlidersY, Styles::SLIDER_WIDTH, Styles::SLIDER_HEIGHT );

@@ -26,8 +26,8 @@ namespace Styles {
     const int SLIDER_HEIGHT     = 20;
     const int SLIDER_MARGIN     = 30;
     const int CHECKBOX_SIZE     = 25;
-    const int LARGE_ROTARY_SIZE = 95;
-    const int ROTARY_SIZE       = 65;
+    const int LARGE_ROTARY_SIZE = 88;
+    const int ROTARY_SIZE       = 62;
     const int ROTARY_MARGIN     = 80;
 
     const unsigned int BACKGROUND_COLOR = 0xff444444;

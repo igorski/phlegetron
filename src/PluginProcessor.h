@@ -20,6 +20,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include "modules/bitcrusher/Bitcrusher.h"
 #include "modules/fuzz/Fuzz.h"
+#include "modules/gain/AutoMakeUpGain.h"
 #include "modules/wavefolder/Wavefolder.h"
 #include "modules/waveshaper/Waveshaper.h"
 #include "utils/ParameterUtilities.h"
@@ -156,13 +157,14 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         // crossover filter processing
 
         static constexpr int MAX_CHANNELS = 2;
-        static constexpr float ATTENUATION_FACTOR = 1.f / MAX_CHANNELS;
         
         juce::dsp::LinkwitzRileyFilter<float> lowPass[ MAX_CHANNELS ];
         juce::dsp::LinkwitzRileyFilter<float> highPass[ MAX_CHANNELS ];
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> splitFreqSmoothed;
         std::vector<float> lowBuffer;
         std::vector<float> highBuffer;
+        AutoMakeUpGain lowMakeup[ MAX_CHANNELS ];
+        AutoMakeUpGain highMakeup[ MAX_CHANNELS ];
 
         inline void prepareCrossoverFilter(
             juce::dsp::LinkwitzRileyFilter<float> &filter, juce::dsp::LinkwitzRileyFilterType type, float frequency

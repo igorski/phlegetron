@@ -236,6 +236,9 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     };
 
     for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
+        lowMakeup[ channel ].prepare( sampleRate );
+        highMakeup[ channel ].prepare( sampleRate );
+
         lowPass[ channel ].prepare( spec );
         highPass[ channel ].prepare( spec );
 
@@ -268,9 +271,14 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     int bufferSize = buffer.getNumSamples();
     auto uBufferSize = static_cast<unsigned long>( bufferSize );
     
+    // prepare gain staging
+
     float dryMix  = 1.f - *dryWetMix;
     float wetMix  = *dryWetMix;
     bool blendDry = dryMix > 0.f;
+
+    std::vector<float> lowPre( uBufferSize );
+    std::vector<float> highPre( uBufferSize );
 
     // update filters with smoothed frequency changes to prevent crackling
 
@@ -331,13 +339,25 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             lowPass[ channelNum ].process( juce::dsp::ProcessContextReplacing<float>( lowBlock ));
             highPass[ channelNum ].process( juce::dsp::ProcessContextReplacing<float>( highBlock ));
 
+            // save the pre-distorted state of the filtered buffer...
+
+            std::memcpy( lowPre.data(),  low,  sizeof( float ) * uBufferSize );
+            std::memcpy( highPre.data(), high, sizeof( float ) * uBufferSize );
+
+            // ...distort
+
             applyDistortion( low, high, uBufferSize, uBufferSize );
+
+            // ...and apply make-up gain to keep large volume jumps in check
+
+            lowMakeup[ channelNum ].apply( lowPre.data(), low, bufferSize );
+            highMakeup[ channelNum ].apply( highPre.data(), high, bufferSize );
 
             // write the effected buffer into the output
     
             for ( int i = 0; i < bufferSize; ++i ) {
                 auto dry = buffer.getSample( channel, i ) * dryMix;
-                auto wet = ( ATTENUATION_FACTOR * ( low[ i ] + high [ i ])) * wetMix;
+                auto wet = ( low[ i ] + high [ i ]) * wetMix;
 
                 buffer.setSample( channel, i, MathUtilities::clamp( dry + wet ));
             }
@@ -427,12 +447,24 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                 iFFT( specA, tempA );
                 iFFT( specB, tempB );
 
+                // save the pre-distorted state of the split buffer...
+
+                std::memcpy( lowPre.data(),  tempA.data(), sizeof( float ) * uBufferSize );
+                std::memcpy( highPre.data(), tempB.data(), sizeof( float ) * uBufferSize );
+
+                // ...distort
+
                 applyDistortion( tempA.data(), tempB.data(), tempA.size(), tempB.size() );
+
+                // ...and apply make-up gain to keep large volume jumps in check
+
+                lowMakeup[ channelNum ].apply( lowPre.data(), tempA.data(), bufferSize );
+                highMakeup[ channelNum ].apply( highPre.data(), tempB.data(), bufferSize );
 
                 // sum and window
 
                 for ( size_t i = 0; i < fftSize; ++i ) {
-                    channelState.outputBuffer[ i ] += ( ATTENUATION_FACTOR * ( tempA[ i ] + tempB[ i ])) * window[ i ];
+                    channelState.outputBuffer[ i ] += ( tempA[ i ] + tempB[ i ]) * window[ i ];
                 }
 
                 // write samples to output (for the hopSize)

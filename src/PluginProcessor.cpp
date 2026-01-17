@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+#include "editor/PluginEditor.h"
 #include "utils/MathUtilities.h"
 
 AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesProperties()

@@ -16,23 +16,13 @@
  */
 #pragma once
 
-#include "PluginProcessor.h"
+#include "ThinRotaryLookAndFeel.h"
+#include "Styles.h"
+#include "../PluginProcessor.h"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor, private juce::AudioProcessorValueTreeState::Listener
 {
-    const int WIDTH  = 620;
-    const int HEIGHT = 830;
-    
-    const int VERSION_WIDTH  = 57;
-    const int VERSION_HEIGHT = 15;
-    const int SLIDER_WIDTH   = 85;
-    const int SLIDER_HEIGHT  = 20;
-    const int SLIDER_MARGIN  = 30;
-    const int CHECKBOX_SIZE  = 25;
-    const int ROTARY_SIZE    = 68;
-    const int ROTARY_MARGIN  = 80;
-    
     public:
         explicit AudioPluginAudioProcessorEditor( AudioPluginAudioProcessor& p, juce::AudioProcessorValueTreeState& state );
         ~AudioPluginAudioProcessorEditor() override;
@@ -48,13 +38,11 @@ class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor,
 
         int scaledWidth;
         int scaledHeight;
-    
-        static const unsigned int BACKGROUND_COLOR = 0xff444444;
-        static const unsigned int HIGHLIGHT_COLOR  = 0xffD9C826;
 
         AudioPluginAudioProcessor& audioProcessor;
 
         /* parameter listeners */
+
         void parameterChanged( const juce::String& parameterID, float newValue ) override;
         void setControlEnabled( juce::Slider& control, bool enabled );
 
@@ -85,6 +73,11 @@ class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor,
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hiDistInputAtt;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hiDistDriveAtt;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hiDistParamAtt;
+
+        // styles
+
+        ThinRotaryLookAndFeel largeRotaryLNF;
+        ThinRotaryLookAndFeel smallRotaryLNF;
         
         inline std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> createControl( const juce::String& title, juce::Slider& controlElement, bool rotary )
         {
@@ -95,11 +88,11 @@ class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor,
             
             if ( rotary ) {
                 controlElement.setSliderStyle( juce::Slider::Rotary );
-                controlElement.getLookAndFeel().setColour( juce::Slider::rotarySliderOutlineColourId, juce::Colour( BACKGROUND_COLOR ));
-                controlElement.getLookAndFeel().setColour( juce::Slider::rotarySliderFillColourId, juce::Colour( HIGHLIGHT_COLOR ));
+                controlElement.getLookAndFeel().setColour( juce::Slider::rotarySliderOutlineColourId, juce::Colour( Styles::BACKGROUND_COLOR ));
+                controlElement.getLookAndFeel().setColour( juce::Slider::rotarySliderFillColourId, juce::Colour( Styles::HIGHLIGHT_COLOR ));
             } else {
-                controlElement.getLookAndFeel().setColour( juce::Slider::backgroundColourId, juce::Colour( BACKGROUND_COLOR ));
-                controlElement.getLookAndFeel().setColour( juce::Slider::trackColourId, juce::Colour( HIGHLIGHT_COLOR ));
+                controlElement.getLookAndFeel().setColour( juce::Slider::backgroundColourId, juce::Colour( Styles::BACKGROUND_COLOR ));
+                controlElement.getLookAndFeel().setColour( juce::Slider::trackColourId, juce::Colour( Styles::HIGHLIGHT_COLOR ));
             }
             controlElement.getLookAndFeel().setColour( juce::Slider::thumbColourId, juce::Colour( 0x00000000 ));
 

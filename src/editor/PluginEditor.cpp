@@ -14,17 +14,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "Parameters.h"
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "BinaryData.h"
+#include "../Parameters.h"
+#include "../PluginProcessor.h"
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor( AudioPluginAudioProcessor& p, juce::AudioProcessorValueTreeState& state )
     : AudioProcessorEditor( &p ), parameters( state ), audioProcessor( p )
 {
-    scaledWidth  = static_cast<int>( ceil( WIDTH / 2 ));
-    scaledHeight = static_cast<int>( ceil( HEIGHT / 2 ));
+    scaledWidth  = static_cast<int>( ceil( Styles::WIDTH / 2 ));
+    scaledHeight = static_cast<int>( ceil( Styles::HEIGHT / 2 ));
 
     setSize( scaledWidth, scaledHeight );
 
@@ -44,6 +44,13 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor( AudioPluginAud
     hiDistInputAtt = createControl( Parameters::HI_DIST_INPUT, hiDistInputControl, false );
     hiDistDriveAtt = createControl( Parameters::HI_DIST_DRIVE, hiDistDriveControl, false );
     hiDistParamAtt = createControl( Parameters::HI_DIST_PARAM, hiDistParamControl, false );
+
+    largeRotaryLNF.setStrokeSize( 4.5f );
+    smallRotaryLNF.setStrokeSize( 4.0f );
+
+    splitFreqControl.setLookAndFeel( &largeRotaryLNF );
+    loDistTypeControl.setLookAndFeel( &smallRotaryLNF );
+    hiDistTypeControl.setLookAndFeel( &smallRotaryLNF );
 
     // add listeners
 
@@ -105,41 +112,40 @@ void AudioPluginAudioProcessorEditor::paint( juce::Graphics& g )
     g.fillAll( getLookAndFeel().findColour( juce::ResizableWindow::backgroundColourId ));
 
     juce::Image background = juce::ImageCache::getFromMemory( BinaryData::background_png, BinaryData::background_pngSize );
-    g.drawImage( background, 0, 0, scaledWidth, scaledHeight, 0, 0, WIDTH, HEIGHT, false );
+    g.drawImage( background, 0, 0, scaledWidth, scaledHeight, 0, 0, Styles::WIDTH, Styles::HEIGHT, false );
     
-    int scaledVersionWidth  = static_cast<int>( ceil( VERSION_WIDTH  / 2 ));
-    int scaledVersionHeight = static_cast<int>( ceil( VERSION_HEIGHT / 2 ));
+    int scaledVersionWidth  = static_cast<int>( ceil( Styles::VERSION_WIDTH  / 2 ));
+    int scaledVersionHeight = static_cast<int>( ceil( Styles::VERSION_HEIGHT / 2 ));
 
     juce::Image version = juce::ImageCache::getFromMemory( BinaryData::version_png, BinaryData::version_pngSize );
     g.drawImage(
         version,
         scaledWidth - ( scaledVersionWidth + 21 ), scaledHeight - 34, scaledVersionWidth, scaledVersionHeight,
-        0, 0, VERSION_WIDTH, VERSION_HEIGHT, false
+        0, 0, Styles::VERSION_WIDTH, Styles::VERSION_HEIGHT, false
     );
 }
 
 void AudioPluginAudioProcessorEditor::resized()
 {
-    int lowSectionX = 55;
-    int dist1x = 24;
-    int dist2x = 217;
-    int distSectionY = 97;
-    int distControlsY = distSectionY + 131;
-    int distSliderMarginX = 8;
-    int largeRotarySize = static_cast<int>( ROTARY_SIZE * 1.4 );
+    int loDistControlX = 25;
+    int hiDistControlX = 218;
+    int loDistSlidersX = loDistControlX - 8;
+    int hiDistSlidersX = hiDistControlX - 8;
+    int distSectionY   = 98;
+    int distSlidersY   = distSectionY + 130;
 
-    linkEnabledControl.setBounds( 159, 319, CHECKBOX_SIZE, CHECKBOX_SIZE );
-    splitFreqControl.setBounds ( lowSectionX + 53, 82, largeRotarySize, largeRotarySize );
-    splitModeControl.setBounds( scaledWidth / 2 - ROTARY_SIZE / 2, 170, ROTARY_SIZE, ROTARY_SIZE );
-    dryWetControl.setBounds( scaledWidth / 2 - SLIDER_WIDTH / 2, scaledHeight - 40, SLIDER_WIDTH, SLIDER_HEIGHT );
+    linkEnabledControl.setBounds( 159, 319, Styles::CHECKBOX_SIZE, Styles::CHECKBOX_SIZE );
+    splitFreqControl.setBounds ( 107, 82, Styles::LARGE_ROTARY_SIZE, Styles::LARGE_ROTARY_SIZE );
+    splitModeControl.setBounds( scaledWidth / 2 - Styles::ROTARY_SIZE / 2, 170, Styles::ROTARY_SIZE, Styles::ROTARY_SIZE );
+    dryWetControl.setBounds( scaledWidth / 2 - Styles::SLIDER_WIDTH / 2, scaledHeight - 40, Styles::SLIDER_WIDTH, Styles::SLIDER_HEIGHT );
     
-    loDistTypeControl.setBounds( dist1x, distSectionY, ROTARY_SIZE, ROTARY_SIZE );
-    loDistInputControl.setBounds( dist1x - distSliderMarginX, distControlsY, SLIDER_WIDTH, SLIDER_HEIGHT );
-    loDistDriveControl.setBounds( dist1x - distSliderMarginX, distControlsY + SLIDER_MARGIN, SLIDER_WIDTH, SLIDER_HEIGHT );
-    loDistParamControl.setBounds( dist1x - distSliderMarginX, distControlsY + SLIDER_MARGIN * 2, SLIDER_WIDTH, SLIDER_HEIGHT );
+    loDistTypeControl.setBounds( loDistControlX, distSectionY, Styles::ROTARY_SIZE, Styles::ROTARY_SIZE );
+    loDistInputControl.setBounds( loDistSlidersX, distSlidersY, Styles::SLIDER_WIDTH, Styles::SLIDER_HEIGHT );
+    loDistDriveControl.setBounds( loDistSlidersX, distSlidersY + Styles::SLIDER_MARGIN, Styles::SLIDER_WIDTH, Styles::SLIDER_HEIGHT );
+    loDistParamControl.setBounds( loDistSlidersX, distSlidersY + Styles::SLIDER_MARGIN * 2, Styles::SLIDER_WIDTH, Styles::SLIDER_HEIGHT );
     
-    hiDistTypeControl.setBounds( dist2x, distSectionY, ROTARY_SIZE, ROTARY_SIZE );
-    hiDistInputControl.setBounds( dist2x - distSliderMarginX, distControlsY, SLIDER_WIDTH, SLIDER_HEIGHT );
-    hiDistDriveControl.setBounds( dist2x - distSliderMarginX, distControlsY + SLIDER_MARGIN, SLIDER_WIDTH, SLIDER_HEIGHT );
-    hiDistParamControl.setBounds( dist2x - distSliderMarginX, distControlsY + SLIDER_MARGIN * 2, SLIDER_WIDTH, SLIDER_HEIGHT );
+    hiDistTypeControl.setBounds( hiDistControlX, distSectionY, Styles::ROTARY_SIZE, Styles::ROTARY_SIZE );
+    hiDistInputControl.setBounds( hiDistSlidersX, distSlidersY, Styles::SLIDER_WIDTH, Styles::SLIDER_HEIGHT );
+    hiDistDriveControl.setBounds( hiDistSlidersX, distSlidersY + Styles::SLIDER_MARGIN, Styles::SLIDER_WIDTH, Styles::SLIDER_HEIGHT );
+    hiDistParamControl.setBounds( hiDistSlidersX, distSlidersY + Styles::SLIDER_MARGIN * 2, Styles::SLIDER_WIDTH, Styles::SLIDER_HEIGHT );
 }

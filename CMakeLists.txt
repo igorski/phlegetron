@@ -119,11 +119,11 @@ target_compile_definitions(${PROJECT_NAME}
 
 target_sources(${PROJECT_NAME}
     PRIVATE
+        src/editor/PluginEditor.cpp    
         src/modules/bitcrusher/Bitcrusher.cpp
         src/modules/fuzz/Fuzz.cpp
         src/modules/wavefolder/Wavefolder.cpp
         src/modules/waveshaper/Waveshaper.cpp
-        src/PluginEditor.cpp
         src/PluginProcessor.cpp
     )
 

@@ -44,6 +44,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesPro
     hiDistInputLevel = parameters.getRawParameterValue( Parameters::HI_DIST_INPUT );
     hiDistDrive      = parameters.getRawParameterValue( Parameters::HI_DIST_DRIVE );
     hiDistParam      = parameters.getRawParameterValue( Parameters::HI_DIST_PARAM );
+
+    harmonics.reserve(( size_t ) Parameters::Ranges::HARMONIC_COUNT );
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -225,6 +227,7 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     juce::ignoreUnused( samplesPerBlock );
     
     _sampleRate = sampleRate;
+    _nyquist = ( float ) _sampleRate * 0.5f;
 
     splitFreqSmoothed.reset( sampleRate, 0.02 );
     splitFreqSmoothed.setCurrentAndTargetValue( *splitFreq );
@@ -384,6 +387,10 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                 channelState.initialised = true;
             }
 
+            // note we use splitFreq (the target of splitFreqSmoothed, its safe for masking)
+
+            calculateHarmonics( splitFreq->load() );
+            
             int samplesProcessed = 0;
             while ( samplesProcessed < bufferSize )
             {
@@ -413,23 +420,37 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
                 // split spectrum by harmonic proximity
                 
-                std::vector<std::complex<float>> specA( fftSize / 2 ), specB( fftSize / 2 );
+                std::vector<std::complex<float>> specA( fftSize / 2 );
+                std::vector<std::complex<float>> specB( fftSize / 2 );
+
                 for ( size_t bin = 0; bin < fftSize / 2; ++bin )
                 {
-                    float freq = bin * ( float ) _sampleRate / fftSize;
-                    bool harmonic = false;
-                    for ( int n = 1; n <= 12; ++n ) {
-                        float h = n * baseFreq;
-                        if ( std::abs( freq - h ) < h * HARMONIC_DETECTION_THRESHOLD ) {
-                            harmonic = true;
-                            break;
+                    float binFreq = ( float ) bin * ( float ) _sampleRate / ( float ) fftSize;
+                    float maskA = 0.0f;
+
+                    for ( Harmonic harmonic : harmonics )
+                    {
+                        float distance = std::abs( binFreq - harmonic.freq );
+                        float norm = distance / harmonic.widthHz;
+
+                        if ( norm < 1.0f )
+                        {
+                            // option A (soft triangular mask)
+                            float contribution = harmonic.weight * ( 1.0f - norm );
+
+                            // option B (smoother mask curve for less ringing)
+                            // float t = 1.0f - norm;
+                            // float smooth = t * t * (3.0f - 2.0f * t);
+                            // float contribution = harmonic.weight * smooth;
+
+                            maskA = std::max( maskA, contribution );
                         }
                     }
-                    if ( harmonic ) {
-                        specA[ bin ] = spec[ bin ];
-                    } else {
-                        specB[ bin ] = spec[ bin ];
-                    }
+                    maskA = juce::jlimit( 0.0f, 1.0f, maskA );
+                    float maskB = 1.0f - maskA;
+
+                    specA[ bin ] = spec[ bin ] * maskA;
+                    specB[ bin ] = spec[ bin ] * maskB;
                 }
 
                 auto iFFT = [&]( const std::vector<std::complex<float>>& src, std::vector<float>& dst )
@@ -443,7 +464,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
                 // inverse FFT and OLA accumulate
 
-                std::vector<float> tempA( fftSize * 2, 0.0f ), tempB( fftSize * 2, 0.0f );
+                std::vector<float> tempA( fftSize * 2, 0.0f );
+                std::vector<float> tempB( fftSize * 2, 0.0f );
                 iFFT( specA, tempA );
                 iFFT( specB, tempB );
 

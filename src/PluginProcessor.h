@@ -195,9 +195,39 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             bool initialised = false;
         };
 
-        static constexpr float HARMONIC_DETECTION_THRESHOLD = 0.03f; // 0.03f
-        
+        struct Harmonic
+        {
+            float freq;
+            float widthHz;
+            float weight;
+        };
+
+        std::vector<Harmonic> harmonics;
         double _sampleRate;
+        float _nyquist;
+        float _lastFreq = 0.f;
+
+        inline void calculateHarmonics( float frequency )
+        {
+            if ( juce::approximatelyEqual( frequency, _lastFreq )) {
+                return; // no need to recalculate
+            }
+            harmonics.clear();
+            
+            for ( size_t h = 1; h <= Parameters::Ranges::HARMONIC_COUNT; ++h )
+            {
+                float freq = h * frequency;
+                if ( freq >= _nyquist ) {
+                    break;
+                }
+                Harmonic harm;
+                harm.freq = freq;
+                harm.widthHz = freq * Parameters::Ranges::HARMONIC_WIDTH;
+                harm.weight = 1.0f / std::pow(( float ) h, Parameters::Ranges::HARMONIC_FALLOFF ); 
+                harmonics.push_back( harm );
+            }
+            _lastFreq = frequency;
+        }
         
         // playback, tempo and time signature
 

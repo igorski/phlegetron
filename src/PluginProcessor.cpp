@@ -369,14 +369,9 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             // process mode 2: harmonic bin splitting
 
             auto* channelData = buffer.getWritePointer( channel );
-            std::vector<float> inBuffer( uBufferSize );
 
-            if ( blendDry ) {
-                // copy the dry signal at its blend value
-                for ( size_t i = 0; i < uBufferSize; ++i ) {
-                    inBuffer[ i ] = channelData[ i ] * dryMix;
-                }
-            }
+            std::vector<float> inBuffer( uBufferSize );
+            std::memcpy( inBuffer.data(), channelData, sizeof( float ) * uBufferSize );
             
             static std::array<ChannelState, MAX_CHANNELS> channelStates;
 
@@ -469,19 +464,9 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                 iFFT( specA, tempA );
                 iFFT( specB, tempB );
 
-                // save the pre-distorted state of the split buffer...
-
-                std::memcpy( lowPre.data(),  tempA.data(), sizeof( float ) * uBufferSize );
-                std::memcpy( highPre.data(), tempB.data(), sizeof( float ) * uBufferSize );
-
-                // ...distort
+                // distort
 
                 applyDistortion( tempA.data(), tempB.data(), tempA.size(), tempB.size() );
-
-                // ...and apply make-up gain to keep large volume jumps in check
-
-                lowMakeup[ channelNum ].apply( lowPre.data(), tempA.data(), bufferSize );
-                highMakeup[ channelNum ].apply( highPre.data(), tempB.data(), bufferSize );
 
                 // sum and window
 
@@ -505,9 +490,13 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                 samplesProcessed += hopSize;
             }
 
+            // apply make-up gain to keep large volume jumps in check
+
+            lowMakeup[ channelNum ].apply( inBuffer.data(), channelData, bufferSize );
+
             if ( blendDry ) {
                 for ( size_t i = 0; i < uBufferSize; ++i ) {
-                    channelData[ i ] += inBuffer[ i ];
+                    channelData[ i ] += ( inBuffer[ i ] * dryMix );
                 }
             }
         }

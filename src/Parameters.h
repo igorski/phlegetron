@@ -44,7 +44,7 @@ namespace Parameters {
 
         static float HARMONIC_COUNT   = 10.f; // specifies how many harmonics of base freq are considered related (1 - 16)
         static float HARMONIC_WIDTH   = 0.3f; // how close a frequency needs to match a harmonic to be considered related ( 0.5 - 10 )
-        static float HARMONIC_FALLOFF = 1.0f;
+        static float HARMONIC_FALLOFF = 1.0f; // 0 = pure fundamental, 1 = natural harmonic spread, 2 = high harmonic emphasis
     }
 
     enum class SplitMode {

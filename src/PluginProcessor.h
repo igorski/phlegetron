@@ -17,8 +17,8 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <juce_dsp/juce_dsp.h>
 #include "modules/bitcrusher/Bitcrusher.h"
+#include "modules/fft/FFT.h"
 #include "modules/fuzz/Fuzz.h"
 #include "modules/gain/AutoMakeUpGain.h"
 #include "modules/wavefolder/Wavefolder.h"
@@ -220,8 +220,8 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
         std::vector<Harmonic> harmonics;
         std::vector<float> harmonicMask;
-        const int FFT_ORDER = 11; // 2048-point FFT
-        const unsigned long fftSize = 1 << FFT_ORDER;
+        std::vector<float> window;
+        FFT fft;
         double _sampleRate;
         float _nyquist;
         float _lastFreq = 0.f;
@@ -248,9 +248,9 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
             // calculate harmonic mask
 
-            for ( size_t bin = 0; bin < fftSize / 2; ++bin )
+            for ( size_t bin = 0; bin < Parameters::FFT::HOP_SIZE; ++bin )
             {
-                float binFreq = ( float ) bin * ( float ) _sampleRate / ( float ) fftSize;
+                float binFreq = ( float ) bin * ( float ) _sampleRate / ( float ) Parameters::FFT::FFT_SIZE;
                 float maskA = 0.0f;
 
                 for ( Harmonic harmonic : harmonics )

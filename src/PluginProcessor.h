@@ -192,13 +192,12 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             std::vector<float> lowPre;
             std::vector<float> highPre;
             std::vector<float> inBuffer;
-            std::vector<float> fftTime;
             std::vector<float> specA;
             std::vector<float> specB;
         };
         TempBuffers temp;
         
-        // FFT
+        // FFT processing
 
         struct ChannelState
         {
@@ -207,71 +206,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             int writePos = 0;
             bool initialised = false;
         };
-
-        struct Harmonic
-        {
-            float freq;
-            float widthHz;
-            float weight;
-        };
-
-        std::vector<Harmonic> harmonics;
-        std::vector<float> harmonicMask;
-        std::vector<float> window;
         FFT fft;
-        double _sampleRate;
-        float _nyquist;
-        float _lastFreq = 0.f;
-
-        inline void calculateHarmonics( float frequency )
-        {
-            if ( juce::approximatelyEqual( frequency, _lastFreq )) {
-                return; // no need to recalculate
-            }
-            harmonics.clear();
-            
-            for ( size_t h = 1; h <= Parameters::Ranges::HARMONIC_COUNT; ++h )
-            {
-                float freq = h * frequency;
-                if ( freq >= _nyquist ) {
-                    break;
-                }
-                Harmonic harm;
-                harm.freq = freq;
-                harm.widthHz = freq * Parameters::Ranges::HARMONIC_WIDTH;
-                harm.weight = 1.0f / std::pow(( float ) h, Parameters::Ranges::HARMONIC_FALLOFF ); 
-                harmonics.push_back( harm );
-            }
-
-            // calculate harmonic mask
-
-            for ( size_t bin = 0; bin < Parameters::FFT::HOP_SIZE; ++bin )
-            {
-                float binFreq = ( float ) bin * ( float ) _sampleRate / ( float ) Parameters::FFT::FFT_SIZE;
-                float maskA = 0.0f;
-
-                for ( Harmonic harmonic : harmonics )
-                {
-                    float distance = std::abs( binFreq - harmonic.freq );
-                    float norm = distance / harmonic.widthHz;
-
-                    if ( norm < 1.0f )
-                    {
-                        // option A (soft triangular mask)
-                        float contribution = harmonic.weight * ( 1.0f - norm );
-
-                        // option B (smoother mask curve for less ringing)
-                        // float t = 1.0f - norm;
-                        // float smooth = t * t * (3.0f - 2.0f * t);
-                        // float contribution = harmonic.weight * smooth;
-
-                        maskA = std::max( maskA, contribution );
-                    }
-                }
-                harmonicMask[ bin ] = juce::jlimit( 0.0f, 1.0f, maskA );
-            }
-            _lastFreq = frequency;
-        }
         
         // playback, tempo and time signature
 

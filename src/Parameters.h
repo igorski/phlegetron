@@ -51,9 +51,9 @@ namespace Parameters {
         static const int ORDER = 11; // 2048-point FFT
 
         // these are deduced from above ORDER
-        static const unsigned long FFT_SIZE    = 1 << Parameters::FFT::ORDER;
-        static const unsigned long DOUBLE_SIZE = Parameters::FFT::FFT_SIZE * 2;
-        static const unsigned long HOP_SIZE    = Parameters::FFT::FFT_SIZE / 2;
+        static const unsigned long SIZE        = 1 << Parameters::FFT::ORDER;
+        static const unsigned long HOP_SIZE    = Parameters::FFT::SIZE / 2;
+        static const unsigned long DOUBLE_SIZE = Parameters::FFT::SIZE * 2;
     }
 
     enum class SplitMode {

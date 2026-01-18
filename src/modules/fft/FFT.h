@@ -26,9 +26,26 @@ class FFT
         FFT();
         ~FFT();
         
-        void forward( float* data );
-        void inverse( /*const std::vector<std::complex<float>>& src,*/ std::vector<float>& dst );
-
+        void update( double sampleRate );
+        void calculateHarmonics( float frequency );
+        void split( const std::vector<float>& inputBuffer, std::vector<float>& specA, std::vector<float>& specB );
+        void sum( std::vector<float>& outputBuffer, std::vector<float>& specA, std::vector<float>& specB );
+        
     private:
         juce::dsp::FFT* _fft;
+        std::vector<float> fftTime;
+        std::vector<float> window;
+
+        struct Harmonic
+        {
+            float freq;
+            float widthHz;
+            float weight;
+        };
+
+        std::vector<Harmonic> harmonics;
+        std::vector<float> harmonicMask;
+        float _sampleRate = 44100.f;
+        float _nyquist = 22050.f;
+        float _lastFreq = 0.f;
 };

@@ -20,6 +20,16 @@
 
 FFT::FFT()
 {
+    fftTime.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
+    window.resize( Parameters::FFT::SIZE );
+
+    for ( size_t n = 0; n < Parameters::FFT::SIZE; ++n ) {
+        window[ n ] = 0.5f - 0.5f * std::cos( 2.f * juce::MathConstants<float>::pi * n / Parameters::FFT::SIZE );
+    }
+
+    harmonics.reserve(( size_t ) Parameters::Ranges::HARMONIC_COUNT );
+    harmonicMask.reserve(( size_t ) Parameters::FFT::HOP_SIZE );
+
     _fft = new juce::dsp::FFT( Parameters::FFT::ORDER );
 }
 
@@ -30,16 +40,103 @@ FFT::~FFT()
 
 /* public methods */
 
-void FFT::forward( float* data )
+void FFT::update( double sampleRate )
 {
-    _fft->performRealOnlyForwardTransform( data );
+    _sampleRate = ( float ) sampleRate;
+    _nyquist = ( float ) _sampleRate * 0.5f;
 }
 
-void FFT::inverse( /*const std::vector<std::complex<float>>& src,*/ std::vector<float>& dst )
+void FFT::calculateHarmonics( float frequency )
 {
-    // for ( size_t i = 0; i < Parameters::FFT::HOP_SIZE; ++i ) {
-    //     dst[ 2 * i ]     = src[ i ].real();
-    //     dst[ 2 * i + 1 ] = src[ i ].imag();
-    // }
-    _fft->performRealOnlyInverseTransform( dst.data() );
+    if ( juce::approximatelyEqual( frequency, _lastFreq )) {
+        return; // no need to recalculate
+    }
+    harmonics.clear();
+    
+    for ( size_t h = 1; h <= Parameters::Ranges::HARMONIC_COUNT; ++h )
+    {
+        float freq = h * frequency;
+        if ( freq >= _nyquist ) {
+            break;
+        }
+        Harmonic harm;
+        harm.freq = freq;
+        harm.widthHz = freq * Parameters::Ranges::HARMONIC_WIDTH;
+        harm.weight = 1.0f / std::pow(( float ) h, Parameters::Ranges::HARMONIC_FALLOFF ); 
+        harmonics.push_back( harm );
+    }
+
+    // calculate harmonic mask
+
+    for ( size_t bin = 0; bin < Parameters::FFT::HOP_SIZE; ++bin )
+    {
+        float binFreq = ( float ) bin * ( float ) _sampleRate / ( float ) Parameters::FFT::SIZE;
+        float maskA = 0.0f;
+
+        for ( Harmonic harmonic : harmonics )
+        {
+            float distance = std::abs( binFreq - harmonic.freq );
+            float norm = distance / harmonic.widthHz;
+
+            if ( norm < 1.0f )
+            {
+                // option A (soft triangular mask)
+                float contribution = harmonic.weight * ( 1.0f - norm );
+
+                // option B (smoother mask curve for less ringing)
+                // float t = 1.0f - norm;
+                // float smooth = t * t * (3.0f - 2.0f * t);
+                // float contribution = harmonic.weight * smooth;
+
+                maskA = std::max( maskA, contribution );
+            }
+        }
+        harmonicMask[ bin ] = juce::jlimit( 0.0f, 1.0f, maskA );
+    }
+    _lastFreq = frequency;
+}
+
+void FFT::split( const std::vector<float>& inputBuffer, std::vector<float>& specA, std::vector<float>& specB ) {
+
+    // apply window to overcome spectral leakage
+
+    for ( size_t i = 0; i < Parameters::FFT::SIZE; ++i ) {
+        fftTime[ i ] = inputBuffer[ i ] * window[ i ];
+    }
+
+    // apply forward transform
+
+    _fft->performRealOnlyForwardTransform( fftTime.data() );
+
+    // split spectrum by harmonic proximity
+
+    for ( size_t bin = 1; bin < Parameters::FFT::HOP_SIZE; ++bin )
+    {
+        float maskA = harmonicMask[ bin ];
+        float maskB = 1.0f - maskA;
+
+        size_t realIndex = 2 * bin;
+        size_t imagIndex = 2 * bin + 1;
+
+        const float real = fftTime[ realIndex ];
+        const float imag = fftTime[ imagIndex ];
+
+        specA[ realIndex ] = real * maskA;
+        specA[ imagIndex ] = imag * maskA;
+
+        specB[ realIndex ] = real * maskB;
+        specB[ imagIndex ] = imag * maskB;
+    }
+
+    // apply inverse transform
+
+    _fft->performRealOnlyInverseTransform( specA.data() );
+    _fft->performRealOnlyInverseTransform( specB.data() );
+}
+
+void FFT::sum( std::vector<float>& outputBuffer, std::vector<float>& specA, std::vector<float>& specB )
+{
+    for ( size_t i = 0; i < Parameters::FFT::SIZE; ++i ) {
+        outputBuffer[ i ] += ( specA[ i ] + specB[ i ]) * window[ i ];
+    }
 }

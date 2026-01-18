@@ -45,7 +45,17 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesPro
     hiDistDrive      = parameters.getRawParameterValue( Parameters::HI_DIST_DRIVE );
     hiDistParam      = parameters.getRawParameterValue( Parameters::HI_DIST_PARAM );
 
+    size_t hopSize = ( size_t ) fftSize / 2;
+
+    harmonicMask.reserve( hopSize );
     harmonics.reserve(( size_t ) Parameters::Ranges::HARMONIC_COUNT );
+    
+    temp.spec.resize( hopSize );
+    temp.specA.resize( hopSize );
+    temp.specB.resize( hopSize );
+    temp.tempA.resize(( size_t ) fftSize * 2 );
+    temp.tempB.resize(( size_t ) fftSize * 2 );
+    temp.fftTime.resize(( size_t ) fftSize * 2 );
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -254,12 +264,6 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     temp.lowPre.resize(( size_t ) samplesPerBlock );
     temp.highPre.resize(( size_t ) samplesPerBlock );
     temp.inBuffer.resize(( size_t ) samplesPerBlock );
-    temp.fftTime.resize(( size_t ) fftSize * 2 );
-    temp.spec.resize(( size_t ) fftSize / 2 );
-    temp.specA.resize(( size_t ) fftSize / 2 );
-    temp.specB.resize(( size_t ) fftSize / 2 );
-    temp.tempA.resize(( size_t ) fftSize * 2 );
-    temp.tempB.resize(( size_t ) fftSize * 2 );
 
     // dispose previously allocated resources
     releaseResources();
@@ -429,28 +433,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
                 for ( size_t bin = 0; bin < hopSize; ++bin )
                 {
-                    float binFreq = ( float ) bin * ( float ) _sampleRate / ( float ) fftSize;
-                    float maskA = 0.0f;
-
-                    for ( Harmonic harmonic : harmonics )
-                    {
-                        float distance = std::abs( binFreq - harmonic.freq );
-                        float norm = distance / harmonic.widthHz;
-
-                        if ( norm < 1.0f )
-                        {
-                            // option A (soft triangular mask)
-                            float contribution = harmonic.weight * ( 1.0f - norm );
-
-                            // option B (smoother mask curve for less ringing)
-                            // float t = 1.0f - norm;
-                            // float smooth = t * t * (3.0f - 2.0f * t);
-                            // float contribution = harmonic.weight * smooth;
-
-                            maskA = std::max( maskA, contribution );
-                        }
-                    }
-                    maskA = juce::jlimit( 0.0f, 1.0f, maskA );
+                    float maskA = harmonicMask[ bin ];
                     float maskB = 1.0f - maskA;
 
                     specA[ bin ] = spec[ bin ] * maskA;

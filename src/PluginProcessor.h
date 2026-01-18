@@ -219,6 +219,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         };
 
         std::vector<Harmonic> harmonics;
+        std::vector<float> harmonicMask;
         const int FFT_ORDER = 11; // 2048-point FFT
         const unsigned long fftSize = 1 << FFT_ORDER;
         double _sampleRate;
@@ -243,6 +244,34 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
                 harm.widthHz = freq * Parameters::Ranges::HARMONIC_WIDTH;
                 harm.weight = 1.0f / std::pow(( float ) h, Parameters::Ranges::HARMONIC_FALLOFF ); 
                 harmonics.push_back( harm );
+            }
+
+            // calculate harmonic mask
+
+            for ( size_t bin = 0; bin < fftSize / 2; ++bin )
+            {
+                float binFreq = ( float ) bin * ( float ) _sampleRate / ( float ) fftSize;
+                float maskA = 0.0f;
+
+                for ( Harmonic harmonic : harmonics )
+                {
+                    float distance = std::abs( binFreq - harmonic.freq );
+                    float norm = distance / harmonic.widthHz;
+
+                    if ( norm < 1.0f )
+                    {
+                        // option A (soft triangular mask)
+                        float contribution = harmonic.weight * ( 1.0f - norm );
+
+                        // option B (smoother mask curve for less ringing)
+                        // float t = 1.0f - norm;
+                        // float smooth = t * t * (3.0f - 2.0f * t);
+                        // float contribution = harmonic.weight * smooth;
+
+                        maskA = std::max( maskA, contribution );
+                    }
+                }
+                harmonicMask[ bin ] = juce::jlimit( 0.0f, 1.0f, maskA );
             }
             _lastFreq = frequency;
         }

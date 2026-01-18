@@ -184,6 +184,22 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         WaveFolder hiWaveFolder;
         WaveShaper lowWaveShaper;
         WaveShaper hiWaveShaper;
+
+        // read / write buffers
+
+        struct TempBuffer
+        {
+            std::vector<float> lowPre;
+            std::vector<float> highPre;
+            std::vector<float> inBuffer;
+            std::vector<float> fftTime;
+            std::vector<std::complex<float>> spec;
+            std::vector<std::complex<float>> specA;
+            std::vector<std::complex<float>> specB;
+            std::vector<float> tempA;
+            std::vector<float> tempB;
+        };
+        TempBuffer temp;
         
         // FFT
 
@@ -203,6 +219,8 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         };
 
         std::vector<Harmonic> harmonics;
+        const int FFT_ORDER = 11; // 2048-point FFT
+        const unsigned long fftSize = 1 << FFT_ORDER;
         double _sampleRate;
         float _nyquist;
         float _lastFreq = 0.f;

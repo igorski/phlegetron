@@ -35,11 +35,11 @@ void FFT::forward( float* data )
     _fft->performRealOnlyForwardTransform( data );
 }
 
-void FFT::inverse( const std::vector<std::complex<float>>& src, std::vector<float>& dst )
+void FFT::inverse( /*const std::vector<std::complex<float>>& src,*/ std::vector<float>& dst )
 {
-    for ( size_t i = 0; i < Parameters::FFT::HOP_SIZE; ++i ) {
-        dst[ 2 * i ]     = src[ i ].real();
-        dst[ 2 * i + 1 ] = src[ i ].imag();
-    }
+    // for ( size_t i = 0; i < Parameters::FFT::HOP_SIZE; ++i ) {
+    //     dst[ 2 * i ]     = src[ i ].real();
+    //     dst[ 2 * i + 1 ] = src[ i ].imag();
+    // }
     _fft->performRealOnlyInverseTransform( dst.data() );
 }

@@ -47,11 +47,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesPro
 
     // prepare resources for FFT processing
 
-    temp.spec.resize(( size_t ) Parameters::FFT::HOP_SIZE );
-    temp.specA.resize(( size_t ) Parameters::FFT::HOP_SIZE );
-    temp.specB.resize(( size_t ) Parameters::FFT::HOP_SIZE );
-    temp.tempA.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
-    temp.tempB.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
+    temp.specA.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
+    temp.specB.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
     temp.fftTime.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
 
     harmonics.reserve(( size_t ) Parameters::Ranges::HARMONIC_COUNT );
@@ -315,12 +312,9 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     auto& highPre = temp.highPre;
     auto& inBuffer = temp.inBuffer;
     auto& fftTime = temp.fftTime;
-    auto& spec = temp.spec;
     auto& specA = temp.specA;
     auto& specB = temp.specB;
-    auto& tempA = temp.tempA;
-    auto& tempB = temp.tempB;
-  
+    
     // per channel processing
 
     for ( int channel = 0; channel < channelAmount; ++channel )
@@ -404,18 +398,15 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                     channelState.inputBuffer.data() + ( Parameters::FFT::FFT_SIZE - Parameters::FFT::HOP_SIZE ), channelData + samplesProcessed, static_cast<unsigned long>( samplesToCopy ) * sizeof( float )
                 );
 
-                // apply FFT
+                // apply window to overcome spectral leakage
 
                 for ( size_t i = 0; i < Parameters::FFT::FFT_SIZE; ++i ) {
                     fftTime[ i ] = channelState.inputBuffer[ i ] * window[ i ];
                 }
+
+                // apply FFT
+
                 fft.forward( fftTime.data());
-
-                // convert to complex
-
-                for ( size_t i = 0; i < Parameters::FFT::HOP_SIZE; ++i ) {
-                    spec[ i ] = { fftTime[ 2 * i ], fftTime[ 2 * i + 1 ]};
-                }
 
                 // split spectrum by harmonic proximity
 
@@ -424,26 +415,35 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                     float maskA = harmonicMask[ bin ];
                     float maskB = 1.0f - maskA;
 
-                    specA[ bin ] = spec[ bin ] * maskA;
-                    specB[ bin ] = spec[ bin ] * maskB;
+                    const int realIndex = 2 * bin;
+                    const int imagIndex = 2 * bin + 1;
+
+                    const float real = fftTime[ realIndex ];
+                    const float imag = fftTime[ imagIndex ];
+
+                    specA[ realIndex ] = real * maskA;
+                    specA[ imagIndex ] = imag * maskA;
+
+                    specB[ realIndex ] = real * maskB;
+                    specB[ imagIndex ] = imag * maskB;
                 }
 
-                // inverse FFT and OLA accumulate
+                // inverse FFT
 
-                fft.inverse( specA, tempA );
-                fft.inverse( specB, tempB );
+                fft.inverse( specA );
+                fft.inverse( specB );
 
                 // distort
 
-                applyDistortion( tempA.data(), tempB.data(), tempA.size(), tempB.size() );
+                applyDistortion( specA.data(), specB.data(), specA.size(), specB.size() );
 
-                // sum and window
+                // sum and apply window (ensures overlap-add works correctly)
 
                 for ( size_t i = 0; i < Parameters::FFT::FFT_SIZE; ++i ) {
-                    channelState.outputBuffer[ i ] += ( tempA[ i ] + tempB[ i ]) * window[ i ];
+                    channelState.outputBuffer[ i ] += ( specA[ i ] + specB[ i ]) * window[ i ];
                 }
 
-                // write samples to output (for the hopSize)
+                // write samples to output
 
                 for ( size_t i = 0; i < Parameters::FFT::HOP_SIZE && ( samplesProcessed + i < uBufferSize ); ++i ) {
                     channelData[ samplesProcessed + i ] = channelState.outputBuffer[ static_cast<unsigned long>( i )] * wetMix;

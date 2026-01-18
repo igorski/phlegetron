@@ -187,19 +187,16 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
         // read / write buffers
 
-        struct TempBuffer
+        struct TempBuffers
         {
             std::vector<float> lowPre;
             std::vector<float> highPre;
             std::vector<float> inBuffer;
             std::vector<float> fftTime;
-            std::vector<std::complex<float>> spec;
-            std::vector<std::complex<float>> specA;
-            std::vector<std::complex<float>> specB;
-            std::vector<float> tempA;
-            std::vector<float> tempB;
+            std::vector<float> specA;
+            std::vector<float> specB;
         };
-        TempBuffer temp;
+        TempBuffers temp;
         
         // FFT
 

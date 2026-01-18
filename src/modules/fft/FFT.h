@@ -27,7 +27,7 @@ class FFT
         ~FFT();
         
         void forward( float* data );
-        void inverse( const std::vector<std::complex<float>>& src, std::vector<float>& dst );
+        void inverse( /*const std::vector<std::complex<float>>& src,*/ std::vector<float>& dst );
 
     private:
         juce::dsp::FFT* _fft;

@@ -47,6 +47,15 @@ namespace Parameters {
         static float HARMONIC_FALLOFF = 1.0f; // 0 = pure fundamental, 1 = natural harmonic spread, 2 = high harmonic emphasis
     }
 
+    namespace FFT {
+        static const int ORDER = 11; // 2048-point FFT
+
+        // these are deduced from above ORDER
+        static const unsigned long SIZE        = 1 << Parameters::FFT::ORDER;
+        static const unsigned long HOP_SIZE    = Parameters::FFT::SIZE / 2;
+        static const unsigned long DOUBLE_SIZE = Parameters::FFT::SIZE * 2;
+    }
+
     enum class SplitMode {
         EQ = 0,
         Harmonic,

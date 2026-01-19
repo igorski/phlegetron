@@ -17,8 +17,8 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <juce_dsp/juce_dsp.h>
 #include "modules/bitcrusher/Bitcrusher.h"
+#include "modules/fft/FFT.h"
 #include "modules/fuzz/Fuzz.h"
 #include "modules/gain/AutoMakeUpGain.h"
 #include "modules/wavefolder/Wavefolder.h"
@@ -184,8 +184,16 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         WaveFolder hiWaveFolder;
         WaveShaper lowWaveShaper;
         WaveShaper hiWaveShaper;
+
+        // read / write buffers
+
+        std::vector<float> lowPre;
+        std::vector<float> highPre;
+        std::vector<float> inBuffer;
+        std::vector<float> specA;
+        std::vector<float> specB;
         
-        // FFT
+        // FFT processing
 
         struct ChannelState
         {
@@ -194,40 +202,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             int writePos = 0;
             bool initialised = false;
         };
-
-        struct Harmonic
-        {
-            float freq;
-            float widthHz;
-            float weight;
-        };
-
-        std::vector<Harmonic> harmonics;
-        double _sampleRate;
-        float _nyquist;
-        float _lastFreq = 0.f;
-
-        inline void calculateHarmonics( float frequency )
-        {
-            if ( juce::approximatelyEqual( frequency, _lastFreq )) {
-                return; // no need to recalculate
-            }
-            harmonics.clear();
-            
-            for ( size_t h = 1; h <= Parameters::Ranges::HARMONIC_COUNT; ++h )
-            {
-                float freq = h * frequency;
-                if ( freq >= _nyquist ) {
-                    break;
-                }
-                Harmonic harm;
-                harm.freq = freq;
-                harm.widthHz = freq * Parameters::Ranges::HARMONIC_WIDTH;
-                harm.weight = 1.0f / std::pow(( float ) h, Parameters::Ranges::HARMONIC_FALLOFF ); 
-                harmonics.push_back( harm );
-            }
-            _lastFreq = frequency;
-        }
+        FFT fft;
         
         // playback, tempo and time signature
 

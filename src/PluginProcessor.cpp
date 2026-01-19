@@ -45,7 +45,10 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesPro
     hiDistDrive      = parameters.getRawParameterValue( Parameters::HI_DIST_DRIVE );
     hiDistParam      = parameters.getRawParameterValue( Parameters::HI_DIST_PARAM );
 
-    harmonics.reserve(( size_t ) Parameters::Ranges::HARMONIC_COUNT );
+    // prepare resources for FFT processing
+
+    specA.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE, 0.f );
+    specB.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE, 0.f );
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -225,9 +228,8 @@ void AudioPluginAudioProcessor::updateParameters()
 void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPerBlock )
 {
     juce::ignoreUnused( samplesPerBlock );
-    
-    _sampleRate = sampleRate;
-    _nyquist = ( float ) _sampleRate * 0.5f;
+
+    fft.update( sampleRate );
 
     splitFreqSmoothed.reset( sampleRate, 0.02 );
     splitFreqSmoothed.setCurrentAndTargetValue( *splitFreq );
@@ -250,6 +252,10 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     }
     lowBuffer.resize(( size_t ) samplesPerBlock );
     highBuffer.resize(( size_t ) samplesPerBlock );
+
+    lowPre.resize(( size_t ) samplesPerBlock );
+    highPre.resize(( size_t ) samplesPerBlock );
+    inBuffer.resize(( size_t ) samplesPerBlock );
 
     // dispose previously allocated resources
     releaseResources();
@@ -280,9 +286,6 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     float wetMix  = *dryWetMix;
     bool blendDry = dryMix > 0.f;
 
-    std::vector<float> lowPre( uBufferSize );
-    std::vector<float> highPre( uBufferSize );
-
     // update filters with smoothed frequency changes to prevent crackling
 
     const float baseFreq = splitFreqSmoothed.getNextValue();
@@ -292,27 +295,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         lowPass[ channel ].setCutoffFrequency( baseFreq );
         highPass[ channel ].setCutoffFrequency( baseFreq );
     }
-
-    // FFT operations related
-
-    const int fftOrder    = 11; // 2048-point FFT
-    const int fftSize     = 1 << fftOrder;
-    constexpr int hopSize = fftSize / 2;
-
-    static juce::dsp::FFT fft( fftOrder );
-
-    // these are static as a cheap way to avoid allocation overhead
-
-    static std::vector<float> window( fftSize );
-    static bool windowInit = false;
-    if ( !windowInit )
-    {
-        for ( size_t n = 0; n < fftSize; ++n ) {
-            window[ n ] = 0.5f - 0.5f * std::cos( 2.f * juce::MathConstants<float>::pi * n / fftSize );
-        }
-        windowInit = true;
-    }
-
+    
     // per channel processing
 
     for ( int channel = 0; channel < channelAmount; ++channel )
@@ -320,7 +303,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         if ( buffer.getReadPointer( channel ) == nullptr ) {
             continue;
         }
-        
+
         int channelNum = channel % MAX_CHANNELS; // keep in range of modules allocated to MAX_CHANNELS
 
         // process mode 1: EQ based split
@@ -370,124 +353,62 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
             auto* channelData = buffer.getWritePointer( channel );
 
-            std::vector<float> inBuffer( uBufferSize );
             std::memcpy( inBuffer.data(), channelData, sizeof( float ) * uBufferSize );
             
             static std::array<ChannelState, MAX_CHANNELS> channelStates;
-
             auto& channelState = channelStates[ static_cast<unsigned long>( channelNum )];
             if ( !channelState.initialised ) {
-                channelState.inputBuffer.assign ( fftSize, 0.0f );
-                channelState.outputBuffer.assign( fftSize, 0.0f );
+                channelState.inputBuffer.assign ( Parameters::FFT::SIZE, 0.0f );
+                channelState.outputBuffer.assign( Parameters::FFT::SIZE, 0.0f );
                 channelState.initialised = true;
             }
 
-            // note we use splitFreq (the target of splitFreqSmoothed, its safe for masking)
+            // note we use splitFreq (the target of splitFreqSmoothed) instead of the current
+            // smoothed value to prevent calculation overhead, this value is safe for masking
 
-            calculateHarmonics( splitFreq->load() );
+            fft.calculateHarmonics( splitFreq->load() );
             
-            int samplesProcessed = 0;
-            while ( samplesProcessed < bufferSize )
+            unsigned long samplesProcessed = 0;
+            while ( samplesProcessed < uBufferSize )
             {
                 // Write new input into circular inputBuffer
-                const int samplesToCopy = std::min( hopSize, bufferSize - samplesProcessed );
+                const unsigned long samplesToCopy = std::min( Parameters::FFT::HOP_SIZE, uBufferSize - samplesProcessed );
                 std::memmove(
-                    channelState.inputBuffer.data(), channelState.inputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
+                    channelState.inputBuffer.data(), channelState.inputBuffer.data() + Parameters::FFT::HOP_SIZE, ( Parameters::FFT::SIZE - Parameters::FFT::HOP_SIZE ) * sizeof( float )
                 );
                 std::memcpy(
-                    channelState.inputBuffer.data() + ( fftSize - hopSize ), channelData + samplesProcessed, static_cast<unsigned long>( samplesToCopy ) * sizeof( float )
+                    channelState.inputBuffer.data() + ( Parameters::FFT::SIZE - Parameters::FFT::HOP_SIZE ), channelData + samplesProcessed, static_cast<unsigned long>( samplesToCopy ) * sizeof( float )
                 );
 
-                // apply FFT
+                // apply FFT to split input signal into specA and specB by harmonic bins
 
-                std::vector<float> fftTime( fftSize * 2, 0.0f );
-                for ( size_t i = 0; i < fftSize; ++i ) {
-                    fftTime[ i ] = channelState.inputBuffer[ i ] * window[ i ];
-                }
-                fft.performRealOnlyForwardTransform( fftTime.data());
-
-                // convert to complex
-                
-                std::vector<std::complex<float>> spec( fftSize / 2 );
-                for ( size_t i = 0; i < fftSize / 2; ++i ) {
-                    spec[ i ] = { fftTime[ 2 * i ], fftTime[ 2 * i + 1 ]};
-                }
-
-                // split spectrum by harmonic proximity
-                
-                std::vector<std::complex<float>> specA( fftSize / 2 );
-                std::vector<std::complex<float>> specB( fftSize / 2 );
-
-                for ( size_t bin = 0; bin < fftSize / 2; ++bin )
-                {
-                    float binFreq = ( float ) bin * ( float ) _sampleRate / ( float ) fftSize;
-                    float maskA = 0.0f;
-
-                    for ( Harmonic harmonic : harmonics )
-                    {
-                        float distance = std::abs( binFreq - harmonic.freq );
-                        float norm = distance / harmonic.widthHz;
-
-                        if ( norm < 1.0f )
-                        {
-                            // option A (soft triangular mask)
-                            float contribution = harmonic.weight * ( 1.0f - norm );
-
-                            // option B (smoother mask curve for less ringing)
-                            // float t = 1.0f - norm;
-                            // float smooth = t * t * (3.0f - 2.0f * t);
-                            // float contribution = harmonic.weight * smooth;
-
-                            maskA = std::max( maskA, contribution );
-                        }
-                    }
-                    maskA = juce::jlimit( 0.0f, 1.0f, maskA );
-                    float maskB = 1.0f - maskA;
-
-                    specA[ bin ] = spec[ bin ] * maskA;
-                    specB[ bin ] = spec[ bin ] * maskB;
-                }
-
-                auto iFFT = [&]( const std::vector<std::complex<float>>& src, std::vector<float>& dst )
-                {
-                    for ( size_t i = 0; i < fftSize / 2; ++i ) {
-                        dst[ 2 * i ]     = src[ i ].real();
-                        dst[ 2 * i + 1 ] = src[ i ].imag();
-                    }
-                    fft.performRealOnlyInverseTransform( dst.data() );
-                };
-
-                // inverse FFT and OLA accumulate
-
-                std::vector<float> tempA( fftSize * 2, 0.0f );
-                std::vector<float> tempB( fftSize * 2, 0.0f );
-                iFFT( specA, tempA );
-                iFFT( specB, tempB );
+                fft.split( channelState.inputBuffer, specA, specB );
 
                 // distort
 
-                applyDistortion( tempA.data(), tempB.data(), tempA.size(), tempB.size() );
+                applyDistortion( specA.data(), specB.data(), specA.size(), specB.size() );
 
-                // sum and window
+                // sum and apply window (windowing ensures overlap-add works correctly)
 
-                for ( size_t i = 0; i < fftSize; ++i ) {
-                    channelState.outputBuffer[ i ] += ( tempA[ i ] + tempB[ i ]) * window[ i ];
-                }
+                fft.sum( channelState.outputBuffer, specA, specB );
 
-                // write samples to output (for the hopSize)
+                // write samples to output
 
-                for ( int i = 0; i < hopSize && ( samplesProcessed + i < bufferSize ); ++i ) {
+                for ( size_t i = 0; i < Parameters::FFT::HOP_SIZE && ( samplesProcessed + i < uBufferSize ); ++i ) {
                     channelData[ samplesProcessed + i ] = channelState.outputBuffer[ static_cast<unsigned long>( i )] * wetMix;
                 }
 
                 // shift output buffer for next overlap
 
                 std::memmove(
-                    channelState.outputBuffer.data(), channelState.outputBuffer.data() + hopSize, ( fftSize - hopSize ) * sizeof( float )
+                    channelState.outputBuffer.data(), channelState.outputBuffer.data() + Parameters::FFT::HOP_SIZE,
+                    ( Parameters::FFT::SIZE - Parameters::FFT::HOP_SIZE ) * sizeof( float )
                 );
-                std::fill( channelState.outputBuffer.begin() + ( fftSize - hopSize ), channelState.outputBuffer.end(), 0.0f );
-
-                samplesProcessed += hopSize;
+                std::fill(
+                    channelState.outputBuffer.begin() + static_cast<long>( Parameters::FFT::SIZE - Parameters::FFT::HOP_SIZE ),
+                    channelState.outputBuffer.end(), 0.0f
+                );
+                samplesProcessed += Parameters::FFT::HOP_SIZE;
             }
 
             // apply make-up gain to keep large volume jumps in check

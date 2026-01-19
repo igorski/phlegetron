@@ -47,8 +47,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesPro
 
     // prepare resources for FFT processing
 
-    temp.specA.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
-    temp.specB.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
+    specA.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
+    specB.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -253,9 +253,9 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     lowBuffer.resize(( size_t ) samplesPerBlock );
     highBuffer.resize(( size_t ) samplesPerBlock );
 
-    temp.lowPre.resize(( size_t ) samplesPerBlock );
-    temp.highPre.resize(( size_t ) samplesPerBlock );
-    temp.inBuffer.resize(( size_t ) samplesPerBlock );
+    lowPre.resize(( size_t ) samplesPerBlock );
+    highPre.resize(( size_t ) samplesPerBlock );
+    inBuffer.resize(( size_t ) samplesPerBlock );
 
     // dispose previously allocated resources
     releaseResources();
@@ -313,8 +313,6 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             auto channelBuffer = buffer.getReadPointer( channel );
             auto low  = lowBuffer.data();
             auto high = highBuffer.data();
-            auto& lowPre = temp.lowPre;
-            auto& highPre = temp.highPre;
             
             std::memcpy( low,  channelBuffer, sizeof( float ) * uBufferSize );
             std::memcpy( high, channelBuffer, sizeof( float ) * uBufferSize );
@@ -354,10 +352,6 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             // process mode 2: harmonic bin splitting
 
             auto* channelData = buffer.getWritePointer( channel );
-
-            auto& inBuffer = temp.inBuffer;
-            auto& specA = temp.specA;
-            auto& specB = temp.specB;
 
             std::memcpy( inBuffer.data(), channelData, sizeof( float ) * uBufferSize );
             

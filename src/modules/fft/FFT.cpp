@@ -110,7 +110,7 @@ void FFT::split( const std::vector<float>& inputBuffer, std::vector<float>& spec
 
     // split spectrum by harmonic proximity
 
-    for ( size_t bin = 1; bin < Parameters::FFT::HOP_SIZE; ++bin )
+    for ( size_t bin = 0; bin < Parameters::FFT::HOP_SIZE; ++bin )
     {
         float maskA = harmonicMask[ bin ];
         float maskB = 1.0f - maskA;

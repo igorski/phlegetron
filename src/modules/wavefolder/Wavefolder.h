@@ -34,7 +34,7 @@ class WaveFolder
         // amount of times we fold the waveform over itself
         // when it exceeds the threshold (increases harmonic complexity)
 
-        static constexpr float FOLDING_MULTIPLIER = 1.5f;
+        static constexpr float FOLDING_MULTIPLIER = 1.25f;
 
         float _level;
         float _drive;

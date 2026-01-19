@@ -75,7 +75,7 @@ void WaveFolder::setDrive( float value )
 void WaveFolder::setThreshold( float value )
 {
     _threshold = juce::jmap(
-        MathUtilities::inverseNormalize( value ), 0.05f, 1.f
+        MathUtilities::inverseNormalize( value ), 0.05f, 0.5f
     );
 }
 

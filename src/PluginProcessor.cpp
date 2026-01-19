@@ -47,8 +47,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor(): AudioProcessor( BusesPro
 
     // prepare resources for FFT processing
 
-    specA.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
-    specB.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE );
+    specA.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE, 0.f );
+    specB.resize(( size_t ) Parameters::FFT::DOUBLE_SIZE, 0.f );
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()

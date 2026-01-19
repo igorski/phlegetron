@@ -179,8 +179,8 @@ void AudioPluginAudioProcessor::updateParameters()
         case Parameters::DistortionType::WaveFolder:
             lowWaveFolder.setLevel( *loDistInputLevel );
             lowWaveFolder.setDrive( *loDistDrive );
-            lowWaveFolder.setThreshold( *loDistDrive ); // make positive threshold equal to drive level
-            lowWaveFolder.setThresholdNegative( *loDistParam );
+            lowWaveFolder.setThreshold( *loDistParam );
+            // lowWaveFolder.setThresholdNegative( *loDistParam );
             break;
 
         case Parameters::DistortionType::WaveShaper:
@@ -210,8 +210,8 @@ void AudioPluginAudioProcessor::updateParameters()
         case Parameters::DistortionType::WaveFolder:
             hiWaveFolder.setLevel( *hiDistInputLevel );
             hiWaveFolder.setDrive( *hiDistDrive );
-            hiWaveFolder.setThreshold( *hiDistDrive ); // make positive threshold equal to drive level
-            hiWaveFolder.setThresholdNegative( *hiDistParam );
+            hiWaveFolder.setThreshold( *loDistParam );
+            // hiWaveFolder.setThresholdNegative( *hiDistParam );
             break;
 
         case Parameters::DistortionType::WaveShaper:

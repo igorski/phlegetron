@@ -23,7 +23,7 @@ class Fuzz
     public:
         Fuzz();
 
-        void setAmount( float value );
+        void setDrive( float value );
         void setInputLevel( float value );
         void setCutOff( float value );
         void setThreshold( float value );
@@ -31,8 +31,8 @@ class Fuzz
         void apply( float* channelData, unsigned long bufferSize );
 
     private:
-        float _amount;
         float _input;
+        float _drive;
         float _cutoffThreshold; // Below this threshold, silence the output
         float _squareWaveThreshold; // Below this threshold, signal is converted to a square wave
 };

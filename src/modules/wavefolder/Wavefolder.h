@@ -26,13 +26,18 @@ class WaveFolder
         void setLevel( float value );
         void setDrive( float value );
         void setThreshold( float value );
-        void setThresholdNegative( float value );
+        // void setThresholdNegative( float value );
         
         void apply( float* channelData, unsigned long bufferSize );
 
     private:
+        // amount of times we fold the waveform over itself
+        // when it exceeds the threshold (increases harmonic complexity)
+
+        static constexpr float FOLDING_MULTIPLIER = 1.5f;
+
         float _level;
         float _drive;
         float _threshold;
-        float _thresholdNegative;
+        // float _thresholdNegative;
 };

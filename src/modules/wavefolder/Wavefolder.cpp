@@ -16,6 +16,7 @@
  */
 #include "Wavefolder.h"
 #include "../../Parameters.h"
+#include "../../utils/MathUtilities.h"
 
 // constructor
 
@@ -23,30 +24,39 @@ WaveFolder::WaveFolder()
 {
     setLevel( Parameters::Config::DIST_INPUT_DEF );
     setDrive( Parameters::Config::DIST_DRIVE_DEF );
-    setThreshold( Parameters::Config::DIST_DRIVE_DEF );
-    setThresholdNegative( Parameters::Config::DIST_PARAM_DEF );
+    setThreshold( Parameters::Config::DIST_PARAM_DEF );
+    // setThresholdNegative( Parameters::Config::DIST_PARAM_DEF );
 }
 
 /* public methods */
 
 void WaveFolder::apply( float* channelData, unsigned long bufferSize )
 {
+    float period = FOLDING_MULTIPLIER * _threshold;
+
     for ( size_t i = 0; i < bufferSize; ++i )
     {
         float inputSample = channelData[ i ] * _drive;
 
+        float wrapped = std::fmod( inputSample + _threshold, period );
+        if ( wrapped < 0.0f ) {
+            wrapped += period;
+        }
+        
+        float folded = std::abs( wrapped - _threshold ) - _threshold;
+
         // Hard (asymetric) wavefolding
     
-        if ( inputSample > _threshold ) {
-            inputSample = _threshold - ( inputSample - _threshold );
-        } else if ( inputSample < -_thresholdNegative ) {
-            inputSample = -_thresholdNegative - ( inputSample + _thresholdNegative );
-        }
+        // if ( inputSample > _threshold ) {
+        //     folded = _threshold - ( inputSample - _threshold );
+        // } else if ( inputSample < -_thresholdNegative ) {
+        //     folded = -_thresholdNegative - ( inputSample + _thresholdNegative );
+        // }
 
         // Alternative: Smooth wavefolding
-        // inputSample = std::tanh( inputSample / _threshold ) * _threshold;
+        // folded = std::tanh( inputSample / _threshold ) * _threshold;
 
-        channelData[ i ] = juce::jlimit( -1.0f, 1.0f, inputSample ) * _level;
+        channelData[ i ] = juce::jlimit( -1.0f, 1.0f, folded ) * _level;
     }
 }
 
@@ -59,15 +69,17 @@ void WaveFolder::setLevel( float value )
 
 void WaveFolder::setDrive( float value )
 {
-    _drive = juce::jmap( value, 1.f, 10.f );
+    _drive = juce::jmap( value, 1.f, 20.f );
 }
 
 void WaveFolder::setThreshold( float value )
 {
-    _threshold = value;
+    _threshold = juce::jmap(
+        MathUtilities::inverseNormalize( value ), 0.05f, 1.f
+    );
 }
 
-void WaveFolder::setThresholdNegative( float value )
-{
-    _thresholdNegative = value;
-}
+// void WaveFolder::setThresholdNegative( float value )
+// {
+//     _thresholdNegative = value;
+// }

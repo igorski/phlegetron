@@ -202,6 +202,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             int writePos = 0;
             bool initialised = false;
         };
+        std::array<ChannelState, MAX_CHANNELS> channelStates;
         FFT fft;
         
         // playback, tempo and time signature

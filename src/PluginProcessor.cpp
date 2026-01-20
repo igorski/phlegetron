@@ -230,7 +230,7 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     juce::ignoreUnused( samplesPerBlock );
 
     fft.update( sampleRate );
-
+    
     splitFreqSmoothed.reset( sampleRate, 0.02 );
     splitFreqSmoothed.setCurrentAndTargetValue( *splitFreq );
 
@@ -249,6 +249,13 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
 
         prepareCrossoverFilter( lowPass[ channel ],  juce::dsp::LinkwitzRileyFilterType::lowpass,  splitFreqSmoothed.getCurrentValue() );
         prepareCrossoverFilter( highPass[ channel ], juce::dsp::LinkwitzRileyFilterType::highpass, splitFreqSmoothed.getCurrentValue() );
+
+        auto& channelState = channelStates[ channel ];
+        if ( !channelState.initialised ) {
+            channelState.inputBuffer.assign ( Parameters::FFT::SIZE, 0.0f );
+            channelState.outputBuffer.assign( Parameters::FFT::SIZE, 0.0f );
+            channelState.initialised = true;
+        }
     }
     lowBuffer.resize(( size_t ) samplesPerBlock );
     highBuffer.resize(( size_t ) samplesPerBlock );
@@ -351,17 +358,10 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         else {
             // process mode 2: harmonic bin splitting
 
-            auto* channelData = buffer.getWritePointer( channel );
+            auto* channelData  = buffer.getWritePointer( channel );
+            auto& channelState = channelStates[ ( size_t ) channelNum ];
 
             std::memcpy( inBuffer.data(), channelData, sizeof( float ) * uBufferSize );
-            
-            static std::array<ChannelState, MAX_CHANNELS> channelStates;
-            auto& channelState = channelStates[ static_cast<unsigned long>( channelNum )];
-            if ( !channelState.initialised ) {
-                channelState.inputBuffer.assign ( Parameters::FFT::SIZE, 0.0f );
-                channelState.outputBuffer.assign( Parameters::FFT::SIZE, 0.0f );
-                channelState.initialised = true;
-            }
 
             // note we use splitFreq (the target of splitFreqSmoothed) instead of the current
             // smoothed value to prevent calculation overhead, this value is safe for masking

@@ -34,6 +34,9 @@ void WaveFolder::apply( float* channelData, unsigned long bufferSize )
 {
     float period = FOLDING_MULTIPLIER * _threshold;
 
+    const float makeupGain = 1.0f / std::sqrt( _drive );
+// float softness = juce::jmap( _drive, 0.0f, 1.0f, 0.8f, 0.3f);
+    
     for ( size_t i = 0; i < bufferSize; ++i )
     {
         float inputSample = channelData[ i ] * _drive;
@@ -44,6 +47,13 @@ void WaveFolder::apply( float* channelData, unsigned long bufferSize )
         }
         
         float folded = std::abs( wrapped - _threshold ) - _threshold;
+
+        // float folded = wrapped;
+        // if ( wrapped > _threshold ) {
+        //     folded = _threshold - ( inputSample - _threshold );
+        // } else if ( wrapped < -_threshold ) {
+        //     folded = -_threshold - ( inputSample + _threshold );
+        // }
 
         // Hard (asymetric) wavefolding
     
@@ -56,7 +66,10 @@ void WaveFolder::apply( float* channelData, unsigned long bufferSize )
         // Alternative: Smooth wavefolding
         // folded = std::tanh( inputSample / _threshold ) * _threshold;
 
-        channelData[ i ] = juce::jlimit( -1.0f, 1.0f, folded ) * _level;
+        // Soft saturation for musicality
+        // channelData[ i ] = (std::tanh(folded * softness) / std::tanh(softness)) * _level;
+
+        channelData[ i ] = folded * makeupGain * _level;
     }
 }
 
@@ -69,13 +82,13 @@ void WaveFolder::setLevel( float value )
 
 void WaveFolder::setDrive( float value )
 {
-    _drive = juce::jmap( value, 1.f, 20.f );
+    _drive = std::pow( 5.0f, value * 2.0f );//juce::jmap( value, 1.f, 20.f );
 }
 
 void WaveFolder::setThreshold( float value )
 {
     _threshold = juce::jmap(
-        MathUtilities::inverseNormalize( value ), 0.05f, 0.5f
+        MathUtilities::inverseNormalize( value ), 0.1f, 0.5f
     );
 }
 

@@ -227,8 +227,6 @@ void AudioPluginAudioProcessor::updateParameters()
 
 void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPerBlock )
 {
-    juce::ignoreUnused( samplesPerBlock );
-
     fft.update( sampleRate );
     
     splitFreqSmoothed.reset( sampleRate, 0.02 );
@@ -240,7 +238,8 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
         ( juce::uint32 ) 1 // one filter per channel
     };
 
-    for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
+    for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel )
+    {
         lowMakeup[ channel ].prepare( sampleRate );
         highMakeup[ channel ].prepare( sampleRate );
 

@@ -228,7 +228,8 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         std::atomic<float>* hiDistParam;
         
         inline void applyDistortion(
-            float* lowChannelData, float* highChannelData, unsigned long lowChannelSize, unsigned long highChannelSize
+            float* lowChannelData, float* highChannelData,
+            const unsigned long lowChannelSize, const unsigned long highChannelSize
         ) {
             bool jointProcessing = ParameterUtilities::floatToBool( *linkEnabled );
 

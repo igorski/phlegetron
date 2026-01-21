@@ -33,24 +33,25 @@ void Fuzz::apply( float* channelData, unsigned long bufferSize )
 {
     for ( size_t i = 0; i < bufferSize; ++i )
     {
-        float inputSample = channelData[ i ] * _input;
-        float absSample   = std::abs( inputSample ); // level used in threshold comparison
+        float inputSample  = channelData[ i ] * _input;
+        float outputSample = inputSample * _drive;
+        float absSample = std::abs( outputSample ); // signal level used for threshold comparison
 
         if ( absSample > _squareWaveThreshold )
         {
-            // signal is above threshold, hard clip it!
-            inputSample = juce::jlimit( -1.0f, 1.0f, _drive * inputSample );
+            // driven signal is above threshold, hard clip it
+            outputSample = juce::jlimit( -1.0f, 1.0f, outputSample );
         }
         else if ( absSample > _cutoffThreshold )
         {
             // when between square wave and cutoff thresholds, the signal should become a square wave
-            inputSample = inputSample > 0.0f ? 1.0f : -1.0f;
+            outputSample = outputSample > 0.0f ? 1.0f : -1.0f;
         }
         else {
             // signal is below the cutoff threshold, make it silent
-            inputSample = 0.0f;
+            outputSample = 0.0f;
         }
-        channelData[ i ] = inputSample;
+        channelData[ i ] = outputSample;
     }
 }
 

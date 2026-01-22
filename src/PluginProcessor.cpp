@@ -232,6 +232,9 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     splitFreqSmoothed.reset( sampleRate, 0.02 );
     splitFreqSmoothed.setCurrentAndTargetValue( *splitFreq );
 
+    lowWaveFolder.init( sampleRate );
+    hiWaveFolder.init( sampleRate );
+
     juce::dsp::ProcessSpec spec {
         sampleRate,
         ( juce::uint32 ) samplesPerBlock,

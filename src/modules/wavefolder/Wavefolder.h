@@ -17,12 +17,14 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
 class WaveFolder
 {
     public:
         WaveFolder();
 
+        void init( double sampleRate );
         void setLevel( float value );
         void setDrive( float value );
         void setThreshold( float value );
@@ -38,10 +40,17 @@ class WaveFolder
         // when it exceeds the threshold (increases harmonic complexity)
 
         static constexpr float FOLDING_MULTIPLIER = 2.0f;
+        static float constexpr FOLD_MIN  = 1.f;
+        static float constexpr FOLD_MAX  = 10.f;
+        static float constexpr DRIVE_MIN = 1.f;
+        static float constexpr DRIVE_MAX = 5.f;
 
         float _level;
         float _drive;
         float _fold;
         float _threshold;
         // float _thresholdNegative;
+
+        juce::dsp::IIR::Filter<float> dcBlocker;
+        juce::dsp::IIR::Filter<float> postLPF;
 };

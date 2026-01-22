@@ -30,26 +30,35 @@ WaveFolder::WaveFolder()
 
 /* public methods */
 
+void WaveFolder::init( double sampleRate )
+{
+    dcBlocker.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass( sampleRate, 20.0f );
+    postLPF.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass( sampleRate, 18000.0f );
+}
+
 void WaveFolder::apply( float* channelData, unsigned long bufferSize )
 {
-    float actualThreshold = juce::jmax( 0.001f, _threshold / _fold );
-    float range = FOLDING_MULTIPLIER * actualThreshold;
+    float foldAmount = juce::jmax( 0.001f, _threshold / _fold );
+    float range = FOLDING_MULTIPLIER * foldAmount;
     
     for ( size_t i = 0; i < bufferSize; ++i )
     {
-        // note we apply drive to the input signal...
+        float inputSample = channelData[ i ] * _level;
 
-        float inputSample = channelData[ i ];
-
-        float wrapped = std::fmod( inputSample + actualThreshold, range );
+        float wrapped = std::fmod( inputSample + foldAmount, range );
         if ( wrapped < 0.0f ) {
             wrapped += range;
         }
-        float folded = std::abs( wrapped - actualThreshold ) - actualThreshold;
+        float folded = std::abs( wrapped - foldAmount ) - foldAmount;
 
-        // ...but also to the folded signal (because its my plugin and I like it)
+        // apply drive to the folded signal
 
         float outputSample = std::tanh( folded * _drive ) / std::tanh( _drive );
+
+        // filter out ultrasonic noise
+
+        outputSample = postLPF.processSample( outputSample );
+        outputSample = dcBlocker.processSample( outputSample );
 
         channelData[ i ] = outputSample;
     }
@@ -60,13 +69,13 @@ void WaveFolder::apply( float* channelData, unsigned long bufferSize )
 void WaveFolder::setLevel( float value )
 {
     _level = value;
-    // we use the input level to fold the threshold
-    _fold = std::pow( juce::jmap( _level, 0.15f, 1.f ), 1.8f );
 }
 
 void WaveFolder::setDrive( float value )
 {
-    _drive = juce::jmap( value, 1.f, 5.f );
+    // we control both fold and drive with a single value
+    _fold  = FOLD_MIN + std::pow( value, 1.8f ) * ( FOLD_MAX - FOLD_MIN );
+    _drive = DRIVE_MIN + std::pow( value, 2.2f ) * ( DRIVE_MAX  - DRIVE_MIN );
 }
 
 void WaveFolder::setThreshold( float value )

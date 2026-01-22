@@ -121,6 +121,7 @@ target_sources(${PROJECT_NAME}
     PRIVATE
         src/editor/PluginEditor.cpp    
         src/modules/bitcrusher/Bitcrusher.cpp
+        src/modules/dcfilter/DCFilter.cpp
         src/modules/fft/FFT.cpp
         src/modules/fuzz/Fuzz.cpp
         src/modules/gain/AutoMakeUpGain.cpp

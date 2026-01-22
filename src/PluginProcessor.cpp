@@ -179,8 +179,8 @@ void AudioPluginAudioProcessor::updateParameters()
         case Parameters::DistortionType::WaveFolder:
             lowWaveFolder.setLevel( *loDistInputLevel );
             lowWaveFolder.setDrive( *loDistDrive );
-            lowWaveFolder.setThreshold( *loDistDrive ); // make positive threshold equal to drive level
-            lowWaveFolder.setThresholdNegative( *loDistParam );
+            lowWaveFolder.setThreshold( *loDistParam );
+            // lowWaveFolder.setThresholdNegative( *loDistParam );
             break;
 
         case Parameters::DistortionType::WaveShaper:
@@ -210,8 +210,8 @@ void AudioPluginAudioProcessor::updateParameters()
         case Parameters::DistortionType::WaveFolder:
             hiWaveFolder.setLevel( *hiDistInputLevel );
             hiWaveFolder.setDrive( *hiDistDrive );
-            hiWaveFolder.setThreshold( *hiDistDrive ); // make positive threshold equal to drive level
-            hiWaveFolder.setThresholdNegative( *hiDistParam );
+            hiWaveFolder.setThreshold( *hiDistParam );
+            // hiWaveFolder.setThresholdNegative( *hiDistParam );
             break;
 
         case Parameters::DistortionType::WaveShaper:
@@ -227,8 +227,6 @@ void AudioPluginAudioProcessor::updateParameters()
 
 void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPerBlock )
 {
-    juce::ignoreUnused( samplesPerBlock );
-
     fft.update( sampleRate );
     
     splitFreqSmoothed.reset( sampleRate, 0.02 );
@@ -240,10 +238,14 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
         ( juce::uint32 ) 1 // one filter per channel
     };
 
-    for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
+    for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel )
+    {
         lowMakeup[ channel ].prepare( sampleRate );
         highMakeup[ channel ].prepare( sampleRate );
 
+        lowDcFilters[ channel ].init( sampleRate );
+        highDcFilters[ channel ].init( sampleRate );
+        
         lowPass[ channel ].prepare( spec );
         highPass[ channel ].prepare( spec );
 
@@ -339,7 +341,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
             // ...distort
 
-            applyDistortion( low, high, uBufferSize, uBufferSize );
+            applyDistortion( channel, low, high, uBufferSize, uBufferSize );
 
             // ...and apply make-up gain to keep large volume jumps in check
 
@@ -386,7 +388,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
                 // distort
 
-                applyDistortion( specA.data(), specB.data(), specA.size(), specB.size() );
+                applyDistortion( channel, specA.data(), specB.data(), specA.size(), specB.size() );
 
                 // sum and apply window (windowing ensures overlap-add works correctly)
 

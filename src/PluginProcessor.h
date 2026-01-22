@@ -18,6 +18,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "modules/bitcrusher/Bitcrusher.h"
+#include "modules/dcfilter/DCFilter.h"
 #include "modules/fft/FFT.h"
 #include "modules/fuzz/Fuzz.h"
 #include "modules/gain/AutoMakeUpGain.h"
@@ -161,11 +162,13 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         juce::dsp::LinkwitzRileyFilter<float> lowPass[ MAX_CHANNELS ];
         juce::dsp::LinkwitzRileyFilter<float> highPass[ MAX_CHANNELS ];
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> splitFreqSmoothed;
-        std::vector<float> lowBuffer;
-        std::vector<float> highBuffer;
         AutoMakeUpGain lowMakeup[ MAX_CHANNELS ];
         AutoMakeUpGain highMakeup[ MAX_CHANNELS ];
-
+        DCFilter lowDcFilters[ MAX_CHANNELS ];
+        DCFilter highDcFilters[ MAX_CHANNELS ];
+        std::vector<float> lowBuffer;
+        std::vector<float> highBuffer;
+        
         inline void prepareCrossoverFilter(
             juce::dsp::LinkwitzRileyFilter<float> &filter, juce::dsp::LinkwitzRileyFilterType type, float frequency
         ) {
@@ -228,8 +231,12 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         std::atomic<float>* hiDistParam;
         
         inline void applyDistortion(
-            float* lowChannelData, float* highChannelData, unsigned long lowChannelSize, unsigned long highChannelSize
+            const int channelNum, float* lowChannelData, float* highChannelData,
+            const unsigned long lowChannelSize, const unsigned long highChannelSize
         ) {
+            // distortions aren't stateful, when jointProcessing is true, we apply
+            // the settings of the low distortion onto the high channel
+
             bool jointProcessing = ParameterUtilities::floatToBool( *linkEnabled );
 
             switch ( loDistType )
@@ -253,8 +260,11 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
                 case Parameters::DistortionType::WaveFolder:
                     lowWaveFolder.apply( lowChannelData, lowChannelSize );
+                    lowDcFilters[ channelNum ].apply( lowChannelData, lowChannelSize ); // remove inaudible noise from folded signal
+
                     if ( jointProcessing ) {
                         lowWaveFolder.apply( highChannelData, highChannelSize );
+                        highDcFilters[ channelNum ].apply( highChannelData, highChannelSize ); // yes, highDcFilters!
                     }
                     break;
 
@@ -285,6 +295,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
                 case Parameters::DistortionType::WaveFolder:
                     hiWaveFolder.apply( highChannelData, highChannelSize );
+                    highDcFilters[ channelNum ].apply( highChannelData, highChannelSize ); // remove inaudible noise from folded signal
                     break;
 
                 case Parameters::DistortionType::WaveShaper:

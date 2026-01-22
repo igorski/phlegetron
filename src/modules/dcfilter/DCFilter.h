@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2026 Igor Zinken https://www.igorski.nl
+ * Copyright (c) 2026 Igor Zinken https://www.igorski.nl
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,22 +17,21 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
-class Fuzz
+/**
+ * Filter utility to remove both ultrasonic and infrasonic
+ * noise from a signal.
+ */
+class DCFilter
 {
     public:
-        Fuzz();
+        DCFilter();
 
-        void setDrive( float value );
-        void setInputLevel( float value );
-        void setCutOff( float value );
-        void setThreshold( float value );
-        
+        void init( double sampleRate );
         void apply( float* channelData, unsigned long bufferSize );
 
     private:
-        float _input;
-        float _drive;
-        float _cutoffThreshold; // Below this threshold, silence the output
-        float _squareWaveThreshold; // Below this threshold, signal is converted to a square wave
+        juce::dsp::IIR::Filter<float> dcBlocker;
+        juce::dsp::IIR::Filter<float> postLPF;
 };

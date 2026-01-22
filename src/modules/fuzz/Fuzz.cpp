@@ -16,7 +16,6 @@
  */
 #include "Fuzz.h"
 #include "../../Parameters.h"
-#include "../../utils/MathUtilities.h"
 
 // constructor
 
@@ -25,8 +24,7 @@ Fuzz::Fuzz()
     setInputLevel( Parameters::Config::DIST_INPUT_DEF );
     setCutOff( Parameters::Config::DIST_PARAM_DEF );
     setThreshold( Parameters::Config::DIST_DRIVE_DEF );
-
-    _amount = 3.f; // 10.f; // provide clipping effect to the input
+    setDrive( 0.22f );
 }
 
 /* public methods */
@@ -35,33 +33,33 @@ void Fuzz::apply( float* channelData, unsigned long bufferSize )
 {
     for ( size_t i = 0; i < bufferSize; ++i )
     {
-        float inputSample = channelData[ i ] * _input;
-        float absSample   = std::abs( inputSample ); // level used in threshold comparison
+        float inputSample  = channelData[ i ] * _input;
+        float outputSample = inputSample * _drive;
+        float absSample = std::abs( outputSample ); // signal level used for threshold comparison
 
         if ( absSample > _squareWaveThreshold )
         {
-            // signal is above threshold, hard clip it!
-            inputSample = juce::jlimit( -1.0f, 1.0f, _amount * inputSample );
-        
+            // driven signal is above threshold, hard clip it
+            outputSample = juce::jlimit( -1.0f, 1.0f, outputSample );
         }
         else if ( absSample > _cutoffThreshold )
         {
             // when between square wave and cutoff thresholds, the signal should become a square wave
-            inputSample = inputSample > 0.0f ? 1.0f : -1.0f;
+            outputSample = outputSample > 0.0f ? 1.0f : -1.0f;
         }
         else {
             // signal is below the cutoff threshold, make it silent
-            inputSample = 0.0f;
+            outputSample = 0.0f;
         }
-        channelData[ i ] = inputSample;
+        channelData[ i ] = outputSample;
     }
 }
 
 /*  setters */
 
-void Fuzz::setAmount( float value )
+void Fuzz::setDrive( float value )
 {
-    _amount = value;
+    _drive = juce::jmap( value, 1.f, 10.f );
 }
 
 void Fuzz::setInputLevel( float value )
@@ -71,7 +69,7 @@ void Fuzz::setInputLevel( float value )
 
 void Fuzz::setCutOff( float value )
 {
-    _cutoffThreshold = MathUtilities::inverseNormalize( value );
+    _cutoffThreshold = value;
 }
 
 void Fuzz::setThreshold( float value )

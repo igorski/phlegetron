@@ -17,14 +17,12 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <juce_dsp/juce_dsp.h>
 
 class WaveFolder
 {
     public:
         WaveFolder();
 
-        void init( double sampleRate );
         void setLevel( float value );
         void setDrive( float value );
         void setThreshold( float value );
@@ -50,7 +48,4 @@ class WaveFolder
         float _fold;
         float _threshold;
         // float _thresholdNegative;
-
-        juce::dsp::IIR::Filter<float> dcBlocker;
-        juce::dsp::IIR::Filter<float> postLPF;
 };

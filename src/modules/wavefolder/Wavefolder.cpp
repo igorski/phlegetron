@@ -30,12 +30,6 @@ WaveFolder::WaveFolder()
 
 /* public methods */
 
-void WaveFolder::init( double sampleRate )
-{
-    dcBlocker.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass( sampleRate, 20.0f );
-    postLPF.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass( sampleRate, 18000.0f );
-}
-
 void WaveFolder::apply( float* channelData, unsigned long bufferSize )
 {
     float foldAmount = juce::jmax( 0.001f, _threshold / _fold );
@@ -54,11 +48,6 @@ void WaveFolder::apply( float* channelData, unsigned long bufferSize )
         // apply drive to the folded signal
 
         float outputSample = std::tanh( folded * _drive ) / std::tanh( _drive );
-
-        // filter out ultrasonic noise
-
-        outputSample = postLPF.processSample( outputSample );
-        outputSample = dcBlocker.processSample( outputSample );
 
         channelData[ i ] = outputSample;
     }

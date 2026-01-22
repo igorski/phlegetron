@@ -232,9 +232,6 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     splitFreqSmoothed.reset( sampleRate, 0.02 );
     splitFreqSmoothed.setCurrentAndTargetValue( *splitFreq );
 
-    lowWaveFolder.init( sampleRate );
-    hiWaveFolder.init( sampleRate );
-
     juce::dsp::ProcessSpec spec {
         sampleRate,
         ( juce::uint32 ) samplesPerBlock,
@@ -246,6 +243,9 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
         lowMakeup[ channel ].prepare( sampleRate );
         highMakeup[ channel ].prepare( sampleRate );
 
+        lowDcFilters[ channel ].init( sampleRate );
+        highDcFilters[ channel ].init( sampleRate );
+        
         lowPass[ channel ].prepare( spec );
         highPass[ channel ].prepare( spec );
 
@@ -341,7 +341,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
             // ...distort
 
-            applyDistortion( low, high, uBufferSize, uBufferSize );
+            applyDistortion( channel, low, high, uBufferSize, uBufferSize );
 
             // ...and apply make-up gain to keep large volume jumps in check
 
@@ -388,7 +388,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
                 // distort
 
-                applyDistortion( specA.data(), specB.data(), specA.size(), specB.size() );
+                applyDistortion( channel, specA.data(), specB.data(), specA.size(), specB.size() );
 
                 // sum and apply window (windowing ensures overlap-add works correctly)
 

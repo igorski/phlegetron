@@ -19,6 +19,10 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
+/**
+ * Filter utility to remove both ultrasonic and infrasonic
+ * noise from a signal.
+ */
 class DCFilter
 {
     public:

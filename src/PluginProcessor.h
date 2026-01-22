@@ -260,7 +260,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
                 case Parameters::DistortionType::WaveFolder:
                     lowWaveFolder.apply( lowChannelData, lowChannelSize );
-                    lowDcFilters[ channelNum ].apply( lowChannelData, lowChannelSize ); // remove ultrasonic noise from folded signal
+                    lowDcFilters[ channelNum ].apply( lowChannelData, lowChannelSize ); // remove inaudible noise from folded signal
 
                     if ( jointProcessing ) {
                         lowWaveFolder.apply( highChannelData, highChannelSize );
@@ -295,7 +295,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
                 case Parameters::DistortionType::WaveFolder:
                     hiWaveFolder.apply( highChannelData, highChannelSize );
-                    highDcFilters[ channelNum ].apply( highChannelData, highChannelSize ); // remove ultrasonic noise from folded signal
+                    highDcFilters[ channelNum ].apply( highChannelData, highChannelSize ); // remove inaudible noise from folded signal
                     break;
 
                 case Parameters::DistortionType::WaveShaper:

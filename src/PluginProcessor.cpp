@@ -210,7 +210,7 @@ void AudioPluginAudioProcessor::updateParameters()
         case Parameters::DistortionType::WaveFolder:
             hiWaveFolder.setLevel( *hiDistInputLevel );
             hiWaveFolder.setDrive( *hiDistDrive );
-            hiWaveFolder.setThreshold( *loDistParam );
+            hiWaveFolder.setThreshold( *hiDistParam );
             // hiWaveFolder.setThresholdNegative( *hiDistParam );
             break;
 

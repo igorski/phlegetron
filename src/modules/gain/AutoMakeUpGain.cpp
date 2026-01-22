@@ -23,8 +23,8 @@ void AutoMakeUpGain::prepare( double sampleRate )
     rmsWindowSize = static_cast<int>( sampleRate * WINDOW_SIZE );
     rmsWindowSize = std::max( 1, rmsWindowSize );
 
-    gainSmoother.reset( sampleRate, GAIN_SMOOTHING );
-    gainSmoother.setCurrentAndTargetValue( 1.0f );
+    gainSmoothed.reset( sampleRate, GAIN_SMOOTHING );
+    gainSmoothed.setCurrentAndTargetValue( 1.0f );
 }
 
 void AutoMakeUpGain::apply( float* pre, float* post, int bufferSize  )
@@ -36,9 +36,9 @@ void AutoMakeUpGain::apply( float* pre, float* post, int bufferSize  )
 
     makeup = juce::jlimit( 0.25f, 4.0f, makeup );
 
-    gainSmoother.setTargetValue( makeup );
-    float smoothGain = gainSmoother.getNextValue();
-    gainSmoother.skip( bufferSize );
+    gainSmoothed.setTargetValue( makeup );
+    float smoothGain = gainSmoothed.getNextValue();
+    gainSmoothed.skip( bufferSize );
 
     for ( int n = 0; n < bufferSize; ++n ) {
         post[ n ] *= smoothGain;

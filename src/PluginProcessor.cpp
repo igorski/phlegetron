@@ -165,28 +165,28 @@ void AudioPluginAudioProcessor::updateParameters()
             break;
 
         case Parameters::DistortionType::BitCrusher:
-            lowBitCrusher.setLevel( *loDistInputLevel );
-            lowBitCrusher.setDownsampling( *loDistDrive );
-            lowBitCrusher.setAmount( *loDistParam );
+            loBitCrusher.setLevel( *loDistInputLevel );
+            loBitCrusher.setDownsampling( *loDistDrive );
+            loBitCrusher.setAmount( *loDistParam );
             break;
 
         case Parameters::DistortionType::Fuzz:
-            lowFuzz.setInputLevel( *loDistInputLevel );
-            lowFuzz.setThreshold( *loDistDrive );
-            lowFuzz.setCutOff( *loDistParam );
+            loFuzz.setInputLevel( *loDistInputLevel );
+            loFuzz.setThreshold( *loDistDrive );
+            loFuzz.setCutOff( *loDistParam );
             break;
 
         case Parameters::DistortionType::WaveFolder:
-            lowWaveFolder.setLevel( *loDistInputLevel );
-            lowWaveFolder.setDrive( *loDistDrive );
-            lowWaveFolder.setThreshold( *loDistParam );
-            // lowWaveFolder.setThresholdNegative( *loDistParam );
+            loWaveFolder.setLevel( *loDistInputLevel );
+            loWaveFolder.setDrive( *loDistDrive );
+            loWaveFolder.setThreshold( *loDistParam );
+            // loWaveFolder.setThresholdNegative( *loDistParam );
             break;
 
         case Parameters::DistortionType::WaveShaper:
-            lowWaveShaper.setOutputLevel( *loDistInputLevel );
-            lowWaveShaper.setAmount( *loDistDrive );
-            lowWaveShaper.setShape( *loDistParam );
+            loWaveShaper.setOutputLevel( *loDistInputLevel );
+            loWaveShaper.setAmount( *loDistDrive );
+            loWaveShaper.setShape( *loDistParam );
             break;
     }
 
@@ -240,17 +240,17 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
 
     for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel )
     {
-        lowMakeup[ channel ].prepare( sampleRate );
-        highMakeup[ channel ].prepare( sampleRate );
+        loMakeup[ channel ].prepare( sampleRate );
+        hiMakeup[ channel ].prepare( sampleRate );
 
-        lowDcFilters[ channel ].init( sampleRate );
-        highDcFilters[ channel ].init( sampleRate );
+        loDcFilters[ channel ].init( sampleRate );
+        hiDcFilters[ channel ].init( sampleRate );
         
-        lowPass[ channel ].prepare( spec );
-        highPass[ channel ].prepare( spec );
+        loPass[ channel ].prepare( spec );
+        hiPass[ channel ].prepare( spec );
 
-        prepareCrossoverFilter( lowPass[ channel ],  juce::dsp::LinkwitzRileyFilterType::lowpass,  splitFreqSmoothed.getCurrentValue() );
-        prepareCrossoverFilter( highPass[ channel ], juce::dsp::LinkwitzRileyFilterType::highpass, splitFreqSmoothed.getCurrentValue() );
+        prepareCrossoverFilter( loPass[ channel ], juce::dsp::LinkwitzRileyFilterType::lowpass,  splitFreqSmoothed.getCurrentValue() );
+        prepareCrossoverFilter( hiPass[ channel ], juce::dsp::LinkwitzRileyFilterType::highpass, splitFreqSmoothed.getCurrentValue() );
 
         auto& channelState = channelStates[ channel ];
         if ( !channelState.initialised ) {
@@ -259,11 +259,11 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
             channelState.initialised = true;
         }
     }
-    lowBuffer.resize(( size_t ) samplesPerBlock );
-    highBuffer.resize(( size_t ) samplesPerBlock );
+    loBuffer.resize(( size_t ) samplesPerBlock );
+    hiBuffer.resize(( size_t ) samplesPerBlock );
 
-    lowPre.resize(( size_t ) samplesPerBlock );
-    highPre.resize(( size_t ) samplesPerBlock );
+    loPre.resize(( size_t ) samplesPerBlock );
+    hiPre.resize(( size_t ) samplesPerBlock );
     inBuffer.resize(( size_t ) samplesPerBlock );
 
     // dispose previously allocated resources
@@ -301,8 +301,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     splitFreqSmoothed.skip( bufferSize );
 
     for ( int channel = 0; channel < MAX_CHANNELS; ++channel ) {
-        lowPass[ channel ].setCutoffFrequency( baseFreq );
-        highPass[ channel ].setCutoffFrequency( baseFreq );
+        loPass[ channel ].setCutoffFrequency( baseFreq );
+        hiPass[ channel ].setCutoffFrequency( baseFreq );
     }
     
     // per channel processing
@@ -320,39 +320,39 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         if ( splitMode == Parameters::SplitMode::EQ ) {
 
             auto channelBuffer = buffer.getReadPointer( channel );
-            auto low  = lowBuffer.data();
-            auto high = highBuffer.data();
+            auto lo = loBuffer.data();
+            auto hi = hiBuffer.data();
             
-            std::memcpy( low,  channelBuffer, sizeof( float ) * uBufferSize );
-            std::memcpy( high, channelBuffer, sizeof( float ) * uBufferSize );
+            std::memcpy( lo, channelBuffer, sizeof( float ) * uBufferSize );
+            std::memcpy( hi, channelBuffer, sizeof( float ) * uBufferSize );
 
             // apply Linkwitz–Riley filtering for a clean crossover separation
 
-            juce::dsp::AudioBlock<float> lowBlock( &low,  1, uBufferSize );
-            juce::dsp::AudioBlock<float> highBlock( &high, 1, uBufferSize );
+            juce::dsp::AudioBlock<float> loBlock( &lo, 1, uBufferSize );
+            juce::dsp::AudioBlock<float> hiBlock( &hi, 1, uBufferSize );
 
-            lowPass[ channelNum ].process( juce::dsp::ProcessContextReplacing<float>( lowBlock ));
-            highPass[ channelNum ].process( juce::dsp::ProcessContextReplacing<float>( highBlock ));
+            loPass[ channelNum ].process( juce::dsp::ProcessContextReplacing<float>( loBlock ));
+            hiPass[ channelNum ].process( juce::dsp::ProcessContextReplacing<float>( hiBlock ));
 
             // save the pre-distorted state of the filtered buffer...
 
-            std::memcpy( lowPre.data(),  low,  sizeof( float ) * uBufferSize );
-            std::memcpy( highPre.data(), high, sizeof( float ) * uBufferSize );
+            std::memcpy( loPre.data(), lo, sizeof( float ) * uBufferSize );
+            std::memcpy( hiPre.data(), hi, sizeof( float ) * uBufferSize );
 
             // ...distort
 
-            applyDistortion( channel, low, high, uBufferSize, uBufferSize );
+            applyDistortion( channel, lo, hi, uBufferSize, uBufferSize );
 
             // ...and apply make-up gain to keep large volume jumps in check
 
-            lowMakeup[ channelNum ].apply( lowPre.data(), low, bufferSize );
-            highMakeup[ channelNum ].apply( highPre.data(), high, bufferSize );
+            loMakeup[ channelNum ].apply( loPre.data(), lo, bufferSize );
+            hiMakeup[ channelNum ].apply( hiPre.data(), hi, bufferSize );
 
             // write the effected buffer into the output
     
             for ( int i = 0; i < bufferSize; ++i ) {
                 auto dry = buffer.getSample( channel, i ) * dryMix;
-                auto wet = ( low[ i ] + high [ i ]) * wetMix;
+                auto wet = ( lo[ i ] + hi[ i ]) * wetMix;
 
                 buffer.setSample( channel, i, MathUtilities::clamp( dry + wet ));
             }
@@ -415,7 +415,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
             // apply make-up gain to keep large volume jumps in check
 
-            lowMakeup[ channelNum ].apply( inBuffer.data(), channelData, bufferSize );
+            loMakeup[ channelNum ].apply( inBuffer.data(), channelData, bufferSize );
 
             if ( blendDry ) {
                 for ( size_t i = 0; i < uBufferSize; ++i ) {

@@ -159,15 +159,15 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
         static constexpr int MAX_CHANNELS = 2;
         
-        juce::dsp::LinkwitzRileyFilter<float> lowPass[ MAX_CHANNELS ];
-        juce::dsp::LinkwitzRileyFilter<float> highPass[ MAX_CHANNELS ];
+        juce::dsp::LinkwitzRileyFilter<float> loPass[ MAX_CHANNELS ];
+        juce::dsp::LinkwitzRileyFilter<float> hiPass[ MAX_CHANNELS ];
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> splitFreqSmoothed;
-        AutoMakeUpGain lowMakeup[ MAX_CHANNELS ];
-        AutoMakeUpGain highMakeup[ MAX_CHANNELS ];
-        DCFilter lowDcFilters[ MAX_CHANNELS ];
-        DCFilter highDcFilters[ MAX_CHANNELS ];
-        std::vector<float> lowBuffer;
-        std::vector<float> highBuffer;
+        AutoMakeUpGain loMakeup[ MAX_CHANNELS ];
+        AutoMakeUpGain hiMakeup[ MAX_CHANNELS ];
+        DCFilter loDcFilters[ MAX_CHANNELS ];
+        DCFilter hiDcFilters[ MAX_CHANNELS ];
+        std::vector<float> loBuffer;
+        std::vector<float> hiBuffer;
         
         inline void prepareCrossoverFilter(
             juce::dsp::LinkwitzRileyFilter<float> &filter, juce::dsp::LinkwitzRileyFilterType type, float frequency
@@ -179,19 +179,19 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
         // effects modules
 
-        BitCrusher lowBitCrusher;
+        BitCrusher loBitCrusher;
         BitCrusher hiBitCrusher;
-        Fuzz lowFuzz;
+        Fuzz loFuzz;
         Fuzz hiFuzz;
-        WaveFolder lowWaveFolder;
+        WaveFolder loWaveFolder;
         WaveFolder hiWaveFolder;
-        WaveShaper lowWaveShaper;
+        WaveShaper loWaveShaper;
         WaveShaper hiWaveShaper;
 
         // read / write buffers
 
-        std::vector<float> lowPre;
-        std::vector<float> highPre;
+        std::vector<float> loPre;
+        std::vector<float> hiPre;
         std::vector<float> inBuffer;
         std::vector<float> specA;
         std::vector<float> specB;
@@ -231,8 +231,8 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         std::atomic<float>* hiDistParam;
         
         inline void applyDistortion(
-            const int channelNum, float* lowChannelData, float* highChannelData,
-            const unsigned long lowChannelSize, const unsigned long highChannelSize
+            const int channelNum, float* loChannelData, float* hiChannelData,
+            const unsigned long loChannelSize, const unsigned long hiChannelSize
         ) {
             // distortions aren't stateful, when jointProcessing is true, we apply
             // the settings of the low distortion onto the high channel
@@ -245,33 +245,33 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
                     break;
                 
                 case Parameters::DistortionType::BitCrusher:
-                    lowBitCrusher.apply( lowChannelData, lowChannelSize );
+                    loBitCrusher.apply( loChannelData, loChannelSize );
                     if ( jointProcessing ) {
-                        lowBitCrusher.apply( highChannelData, highChannelSize );
+                        loBitCrusher.apply( hiChannelData, hiChannelSize );
                     }
                     break;
                 
                 case Parameters::DistortionType::Fuzz:
-                    lowFuzz.apply( lowChannelData, lowChannelSize );
+                    loFuzz.apply( loChannelData, loChannelSize );
                     if ( jointProcessing ) {
-                        lowFuzz.apply( highChannelData, highChannelSize );
+                        loFuzz.apply( hiChannelData, hiChannelSize );
                     }
                     break;
 
                 case Parameters::DistortionType::WaveFolder:
-                    lowWaveFolder.apply( lowChannelData, lowChannelSize );
-                    lowDcFilters[ channelNum ].apply( lowChannelData, lowChannelSize ); // remove inaudible noise from folded signal
+                    loWaveFolder.apply( loChannelData, loChannelSize );
+                    loDcFilters[ channelNum ].apply( loChannelData, loChannelSize ); // remove inaudible noise from folded signal
 
                     if ( jointProcessing ) {
-                        lowWaveFolder.apply( highChannelData, highChannelSize );
-                        highDcFilters[ channelNum ].apply( highChannelData, highChannelSize ); // yes, highDcFilters!
+                        loWaveFolder.apply( hiChannelData, hiChannelSize );
+                        hiDcFilters[ channelNum ].apply( hiChannelData, hiChannelSize ); // yes, hiDcFilters!
                     }
                     break;
 
                 case Parameters::DistortionType::WaveShaper:
-                    lowWaveShaper.apply( lowChannelData, lowChannelSize );
+                    loWaveShaper.apply( loChannelData, loChannelSize );
                     if ( jointProcessing ) {
-                        lowWaveShaper.apply( highChannelData, highChannelSize );
+                        loWaveShaper.apply( hiChannelData, hiChannelSize );
                     }
                     break;
             }
@@ -286,20 +286,20 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
                     break;
 
                 case Parameters::DistortionType::BitCrusher:
-                    hiBitCrusher.apply( highChannelData, highChannelSize );
+                    hiBitCrusher.apply( hiChannelData, hiChannelSize );
                     break;
 
                 case Parameters::DistortionType::Fuzz:
-                    hiFuzz.apply( highChannelData, highChannelSize );
+                    hiFuzz.apply( hiChannelData, hiChannelSize );
                     break;
 
                 case Parameters::DistortionType::WaveFolder:
-                    hiWaveFolder.apply( highChannelData, highChannelSize );
-                    highDcFilters[ channelNum ].apply( highChannelData, highChannelSize ); // remove inaudible noise from folded signal
+                    hiWaveFolder.apply( hiChannelData, hiChannelSize );
+                    hiDcFilters[ channelNum ].apply( hiChannelData, hiChannelSize ); // remove inaudible noise from folded signal
                     break;
 
                 case Parameters::DistortionType::WaveShaper:
-                    hiWaveShaper.apply( highChannelData, highChannelSize );
+                    hiWaveShaper.apply( hiChannelData, hiChannelSize );
                     break;
             }
         }

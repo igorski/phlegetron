@@ -37,7 +37,7 @@ class AutoMakeUpGain
 
     private:
         int rmsWindowSize = 0;
-        juce::SmoothedValue<float> gainSmoother;
+        juce::SmoothedValue<float> gainSmoothed;
 
         float computeRMS( const float* data, int numSamples );
 };

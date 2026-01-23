@@ -171,7 +171,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
         // parameter smoothing (prevents glitches while adjusting in realtime)
 
-        static constexpr float PARAM_RAMP_TIME = 0.2f;
+        static constexpr float PARAM_RAMP_TIME_SECONDS = 0.02f;
         
         Smoother splitFreqSmoothed;
         Smoother loLevelSmoothed;

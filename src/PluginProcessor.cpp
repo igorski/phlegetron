@@ -268,13 +268,13 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
 {
     fft.update( sampleRate );
 
-    splitFreqSmoothed.init( sampleRate, PARAM_RAMP_TIME, *splitFreq );
-    loLevelSmoothed.init( sampleRate, PARAM_RAMP_TIME, *loDistInputLevel );
-    loDriveSmoothed.init( sampleRate, PARAM_RAMP_TIME, *loDistDrive );
-    loParamSmoothed.init( sampleRate, PARAM_RAMP_TIME, *loDistParam );
-    hiLevelSmoothed.init( sampleRate, PARAM_RAMP_TIME, *hiDistInputLevel );
-    hiDriveSmoothed.init( sampleRate, PARAM_RAMP_TIME, *hiDistDrive );
-    hiParamSmoothed.init( sampleRate, PARAM_RAMP_TIME, *hiDistParam );
+    splitFreqSmoothed.init( sampleRate, PARAM_RAMP_TIME_SECONDS, *splitFreq );
+    loLevelSmoothed.init( sampleRate, PARAM_RAMP_TIME_SECONDS, *loDistInputLevel );
+    loDriveSmoothed.init( sampleRate, PARAM_RAMP_TIME_SECONDS, *loDistDrive );
+    loParamSmoothed.init( sampleRate, PARAM_RAMP_TIME_SECONDS, *loDistParam );
+    hiLevelSmoothed.init( sampleRate, PARAM_RAMP_TIME_SECONDS, *hiDistInputLevel );
+    hiDriveSmoothed.init( sampleRate, PARAM_RAMP_TIME_SECONDS, *hiDistDrive );
+    hiParamSmoothed.init( sampleRate, PARAM_RAMP_TIME_SECONDS, *hiDistParam );
 
     juce::dsp::ProcessSpec spec {
         sampleRate,

@@ -22,6 +22,7 @@
 #include "modules/fft/FFT.h"
 #include "modules/fuzz/Fuzz.h"
 #include "modules/gain/AutoMakeUpGain.h"
+#include "modules/smoother/Smoother.h"
 #include "modules/wavefolder/Wavefolder.h"
 #include "modules/waveshaper/Waveshaper.h"
 #include "utils/ParameterUtilities.h"
@@ -68,6 +69,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         juce::AudioProcessorValueTreeState parameters;
         ParameterListener parameterListener;
         void updateParameters() override;
+        void applyParameters( int bufferSize );
 
         static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         {
@@ -158,15 +160,22 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         // crossover filter processing
 
         static constexpr int MAX_CHANNELS = 2;
+        static constexpr float PARAM_RAMP_TIME = 0.2f;
         
         juce::dsp::LinkwitzRileyFilter<float> loPass[ MAX_CHANNELS ];
         juce::dsp::LinkwitzRileyFilter<float> hiPass[ MAX_CHANNELS ];
-        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> splitFreqSmoothed;
         AutoMakeUpGain loMakeup[ MAX_CHANNELS ];
         AutoMakeUpGain hiMakeup[ MAX_CHANNELS ];
         DCFilter dcFilters[ MAX_CHANNELS ];
         std::vector<float> loBuffer;
         std::vector<float> hiBuffer;
+        Smoother splitFreqSmoothed;
+        Smoother loLevelSmoothed;
+        Smoother loDriveSmoothed;
+        Smoother loParamSmoothed;
+        Smoother hiLevelSmoothed;
+        Smoother hiDriveSmoothed;
+        Smoother hiParamSmoothed;
         
         inline void prepareCrossoverFilter(
             juce::dsp::LinkwitzRileyFilter<float> &filter, juce::dsp::LinkwitzRileyFilterType type, float frequency

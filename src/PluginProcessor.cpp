@@ -159,72 +159,107 @@ void AudioPluginAudioProcessor::updateParameters()
         parameters.getRawParameterValue( Parameters::HI_DIST_TYPE )->load()
     );
 
-    switch ( loDistType )
+    splitFreqSmoothed.set( *splitFreq );
+    loLevelSmoothed.set( *loDistInputLevel );
+    loDriveSmoothed.set( *loDistDrive );
+    loParamSmoothed.set( *loDistParam );
+    hiLevelSmoothed.set( *hiDistInputLevel );
+    hiDriveSmoothed.set( *hiDistDrive );
+    hiParamSmoothed.set( *hiDistParam );
+}
+
+void AudioPluginAudioProcessor::applyParameters( int bufferSize )
+{
+    if ( !splitFreqSmoothed.isDone() ) {
+        const float baseFreq = splitFreqSmoothed.peek( bufferSize );
+
+        for ( int channel = 0; channel < MAX_CHANNELS; ++channel ) {
+            loPass[ channel ].setCutoffFrequency( baseFreq );
+            hiPass[ channel ].setCutoffFrequency( baseFreq );
+        }
+    }
+    bool updateLoDistortion = !loLevelSmoothed.isDone() || !loDriveSmoothed.isDone() || !loParamSmoothed.isDone();
+    bool updateHiDistortion = !hiLevelSmoothed.isDone() || !hiDriveSmoothed.isDone() || !hiParamSmoothed.isDone();
+
+    if ( updateLoDistortion )
     {
-        case Parameters::DistortionType::Off:
-            break;
+        const float level = loLevelSmoothed.peek( bufferSize );
+        const float drive = loDriveSmoothed.peek( bufferSize );
+        const float param = loParamSmoothed.peek( bufferSize );
 
-        case Parameters::DistortionType::BitCrusher:
-            for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
-                loBitCrusher[ channel ].setLevel( *loDistInputLevel );
-                loBitCrusher[ channel ].setDownsampling( *loDistDrive );
-                loBitCrusher[ channel ].setAmount( *loDistParam );
-            }
-            break;
+        switch ( loDistType )
+        {
+            case Parameters::DistortionType::Off:
+                break;
 
-        case Parameters::DistortionType::Fuzz:
-            loFuzz.setInputLevel( *loDistInputLevel );
-            loFuzz.setThreshold( *loDistDrive );
-            loFuzz.setCutOff( *loDistParam );
-            break;
+            case Parameters::DistortionType::BitCrusher:
+                for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
+                    loBitCrusher[ channel ].setLevel( level );
+                    loBitCrusher[ channel ].setDownsampling( drive );
+                    loBitCrusher[ channel ].setAmount( param );
+                }
+                break;
 
-        case Parameters::DistortionType::WaveFolder:
-            loWaveFolder.setLevel( *loDistInputLevel );
-            loWaveFolder.setDrive( *loDistDrive );
-            loWaveFolder.setThreshold( *loDistParam );
-            // loWaveFolder.setThresholdNegative( *loDistParam );
-            break;
+            case Parameters::DistortionType::Fuzz:
+                loFuzz.setInputLevel( level );
+                loFuzz.setThreshold( drive );
+                loFuzz.setCutOff( param );
+                break;
 
-        case Parameters::DistortionType::WaveShaper:
-            loWaveShaper.setOutputLevel( *loDistInputLevel );
-            loWaveShaper.setAmount( *loDistDrive );
-            loWaveShaper.setShape( *loDistParam );
-            break;
+            case Parameters::DistortionType::WaveFolder:
+                loWaveFolder.setLevel( level );
+                loWaveFolder.setDrive( drive );
+                loWaveFolder.setThreshold( param );
+                // loWaveFolder.setThresholdNegative( param );
+                break;
+
+            case Parameters::DistortionType::WaveShaper:
+                loWaveShaper.setOutputLevel( level );
+                loWaveShaper.setAmount( drive );
+                loWaveShaper.setShape( param );
+                break;
+        }
     }
 
-    switch ( hiDistType )
+    if ( updateHiDistortion )
     {
-        case Parameters::DistortionType::Off:
-            break;
-            
-        case Parameters::DistortionType::BitCrusher:
-            for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
-                hiBitCrusher[ channel ].setLevel( *hiDistInputLevel );
-                hiBitCrusher[ channel ].setDownsampling( *hiDistDrive );
-                hiBitCrusher[ channel ].setAmount( *hiDistParam );
-            }
-            break;
+        const float level = hiLevelSmoothed.peek( bufferSize );
+        const float drive = hiDriveSmoothed.peek( bufferSize );
+        const float param = hiParamSmoothed.peek( bufferSize );
 
-        case Parameters::DistortionType::Fuzz:
-            hiFuzz.setInputLevel( *hiDistInputLevel );
-            hiFuzz.setThreshold( *hiDistDrive );
-            hiFuzz.setCutOff( *hiDistParam );
-            break;
+        switch ( hiDistType )
+        {
+            case Parameters::DistortionType::Off:
+                break;
+                
+            case Parameters::DistortionType::BitCrusher:
+                for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
+                    hiBitCrusher[ channel ].setLevel( level );
+                    hiBitCrusher[ channel ].setDownsampling( drive );
+                    hiBitCrusher[ channel ].setAmount( param );
+                }
+                break;
 
-        case Parameters::DistortionType::WaveFolder:
-            hiWaveFolder.setLevel( *hiDistInputLevel );
-            hiWaveFolder.setDrive( *hiDistDrive );
-            hiWaveFolder.setThreshold( *hiDistParam );
-            // hiWaveFolder.setThresholdNegative( *hiDistParam );
-            break;
+            case Parameters::DistortionType::Fuzz:
+                hiFuzz.setInputLevel( level );
+                hiFuzz.setThreshold( drive );
+                hiFuzz.setCutOff( param );
+                break;
 
-        case Parameters::DistortionType::WaveShaper:
-            hiWaveShaper.setOutputLevel( *hiDistInputLevel );
-            hiWaveShaper.setAmount( *hiDistDrive );
-            hiWaveShaper.setShape( *hiDistParam );
-            break;
+            case Parameters::DistortionType::WaveFolder:
+                hiWaveFolder.setLevel( level );
+                hiWaveFolder.setDrive( drive );
+                hiWaveFolder.setThreshold( param );
+                // hiWaveFolder.setThresholdNegative( param );
+                break;
+
+            case Parameters::DistortionType::WaveShaper:
+                hiWaveShaper.setOutputLevel( level );
+                hiWaveShaper.setAmount( drive );
+                hiWaveShaper.setShape( param );
+                break;
+        }
     }
-    splitFreqSmoothed.setTargetValue( *splitFreq );
 }
 
 /* resource management */
@@ -232,9 +267,14 @@ void AudioPluginAudioProcessor::updateParameters()
 void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPerBlock )
 {
     fft.update( sampleRate );
-    
-    splitFreqSmoothed.reset( sampleRate, 0.02 );
-    splitFreqSmoothed.setCurrentAndTargetValue( *splitFreq );
+
+    splitFreqSmoothed.init( sampleRate, PARAM_RAMP_TIME, *splitFreq );
+    loLevelSmoothed.init( sampleRate, PARAM_RAMP_TIME, *loDistInputLevel );
+    loDriveSmoothed.init( sampleRate, PARAM_RAMP_TIME, *loDistDrive );
+    loParamSmoothed.init( sampleRate, PARAM_RAMP_TIME, *loDistParam );
+    hiLevelSmoothed.init( sampleRate, PARAM_RAMP_TIME, *hiDistInputLevel );
+    hiDriveSmoothed.init( sampleRate, PARAM_RAMP_TIME, *hiDistDrive );
+    hiParamSmoothed.init( sampleRate, PARAM_RAMP_TIME, *hiDistParam );
 
     juce::dsp::ProcessSpec spec {
         sampleRate,
@@ -252,8 +292,8 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
         loPass[ channel ].prepare( spec );
         hiPass[ channel ].prepare( spec );
 
-        prepareCrossoverFilter( loPass[ channel ], juce::dsp::LinkwitzRileyFilterType::lowpass,  splitFreqSmoothed.getCurrentValue() );
-        prepareCrossoverFilter( hiPass[ channel ], juce::dsp::LinkwitzRileyFilterType::highpass, splitFreqSmoothed.getCurrentValue() );
+        prepareCrossoverFilter( loPass[ channel ], juce::dsp::LinkwitzRileyFilterType::lowpass,  splitFreqSmoothed.get() );
+        prepareCrossoverFilter( hiPass[ channel ], juce::dsp::LinkwitzRileyFilterType::highpass, splitFreqSmoothed.get() );
 
         auto& channelState = channelStates[ channel ];
         if ( !channelState.initialised ) {
@@ -299,16 +339,10 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     bool blendDry = dryMix > 0.f;
     bool needsFiltering = loDistType == Parameters::DistortionType::WaveFolder || ( !ParameterUtilities::floatToBool( *linkEnabled ) && hiDistType == Parameters::DistortionType::WaveFolder );
     
-    // update filters with smoothed frequency changes to prevent crackling
+    // update module properties with smoothed changes to prevent crackling
 
-    const float baseFreq = splitFreqSmoothed.getNextValue();
-    splitFreqSmoothed.skip( bufferSize );
+    applyParameters( bufferSize );
 
-    for ( int channel = 0; channel < MAX_CHANNELS; ++channel ) {
-        loPass[ channel ].setCutoffFrequency( baseFreq );
-        hiPass[ channel ].setCutoffFrequency( baseFreq );
-    }
-    
     // per channel processing
 
     for ( int channel = 0; channel < channelAmount; ++channel )
@@ -370,7 +404,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             std::memcpy( inBuffer.data(), channelData, sizeof( float ) * uBufferSize );
 
             // note we use splitFreq (the target of splitFreqSmoothed) instead of the current
-            // smoothed value to prevent calculation overhead, this value is safe for masking
+            // smoothed value to prevent calculation overhead, this (non-interpolated) value is safe for masking
 
             fft.calculateHarmonics( splitFreq->load() );
             

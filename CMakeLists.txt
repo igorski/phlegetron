@@ -125,6 +125,7 @@ target_sources(${PROJECT_NAME}
         src/modules/fft/FFT.cpp
         src/modules/fuzz/Fuzz.cpp
         src/modules/gain/AutoMakeUpGain.cpp
+        src/modules/smoother/Smoother.cpp
         src/modules/wavefolder/Wavefolder.cpp
         src/modules/waveshaper/Waveshaper.cpp
         src/PluginProcessor.cpp

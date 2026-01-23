@@ -160,7 +160,6 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         // crossover filter processing
 
         static constexpr int MAX_CHANNELS = 2;
-        static constexpr float PARAM_RAMP_TIME = 0.2f;
         
         juce::dsp::LinkwitzRileyFilter<float> loPass[ MAX_CHANNELS ];
         juce::dsp::LinkwitzRileyFilter<float> hiPass[ MAX_CHANNELS ];
@@ -169,6 +168,11 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         DCFilter dcFilters[ MAX_CHANNELS ];
         std::vector<float> loBuffer;
         std::vector<float> hiBuffer;
+
+        // parameter smoothing (prevent glitches)
+        
+        static constexpr float PARAM_RAMP_TIME = 0.2f;
+        
         Smoother splitFreqSmoothed;
         Smoother loLevelSmoothed;
         Smoother loDriveSmoothed;

@@ -183,9 +183,9 @@ void AudioPluginAudioProcessor::applyParameters( int samplesToAdvance )
 
     if ( updateLoDistortion )
     {
-        const float level = loLevelSmoothed.peek( samplesToAdvance );
-        const float drive = loDriveSmoothed.peek( samplesToAdvance );
-        const float param = loParamSmoothed.peek( samplesToAdvance );
+        const float loLevel = loLevelSmoothed.peek( samplesToAdvance );
+        const float loDrive = loDriveSmoothed.peek( samplesToAdvance );
+        const float loParam = loParamSmoothed.peek( samplesToAdvance );
 
         switch ( loDistType )
         {
@@ -194,38 +194,38 @@ void AudioPluginAudioProcessor::applyParameters( int samplesToAdvance )
 
             case Parameters::DistortionType::BitCrusher:
                 for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
-                    loBitCrusher[ channel ].setLevel( level );
-                    loBitCrusher[ channel ].setDownsampling( drive );
-                    loBitCrusher[ channel ].setAmount( param );
+                    loBitCrusher[ channel ].setLevel( loLevel );
+                    loBitCrusher[ channel ].setDownsampling( loDrive );
+                    loBitCrusher[ channel ].setAmount( loParam );
                 }
                 break;
 
             case Parameters::DistortionType::Fuzz:
-                loFuzz.setInputLevel( level );
-                loFuzz.setThreshold( drive );
-                loFuzz.setCutOff( param );
+                loFuzz.setInputLevel( loLevel );
+                loFuzz.setThreshold( loDrive );
+                loFuzz.setCutOff( loParam );
                 break;
 
             case Parameters::DistortionType::WaveFolder:
-                loWaveFolder.setLevel( level );
-                loWaveFolder.setDrive( drive );
-                loWaveFolder.setThreshold( param );
+                loWaveFolder.setLevel( loLevel );
+                loWaveFolder.setDrive( loDrive );
+                loWaveFolder.setThreshold( loParam );
                 // loWaveFolder.setThresholdNegative( param );
                 break;
 
             case Parameters::DistortionType::WaveShaper:
-                loWaveShaper.setOutputLevel( level );
-                loWaveShaper.setAmount( drive );
-                loWaveShaper.setShape( param );
+                loWaveShaper.setOutputLevel( loLevel );
+                loWaveShaper.setAmount( loDrive );
+                loWaveShaper.setShape( loParam );
                 break;
         }
     }
 
     if ( updateHiDistortion )
     {
-        const float level = hiLevelSmoothed.peek( samplesToAdvance );
-        const float drive = hiDriveSmoothed.peek( samplesToAdvance );
-        const float param = hiParamSmoothed.peek( samplesToAdvance );
+        const float hiLevel = hiLevelSmoothed.peek( samplesToAdvance );
+        const float hiDrive = hiDriveSmoothed.peek( samplesToAdvance );
+        const float hiParam = hiParamSmoothed.peek( samplesToAdvance );
 
         switch ( hiDistType )
         {
@@ -234,29 +234,29 @@ void AudioPluginAudioProcessor::applyParameters( int samplesToAdvance )
                 
             case Parameters::DistortionType::BitCrusher:
                 for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
-                    hiBitCrusher[ channel ].setLevel( level );
-                    hiBitCrusher[ channel ].setDownsampling( drive );
-                    hiBitCrusher[ channel ].setAmount( param );
+                    hiBitCrusher[ channel ].setLevel( hiLevel );
+                    hiBitCrusher[ channel ].setDownsampling( hiDrive );
+                    hiBitCrusher[ channel ].setAmount( hiParam );
                 }
                 break;
 
             case Parameters::DistortionType::Fuzz:
-                hiFuzz.setInputLevel( level );
-                hiFuzz.setThreshold( drive );
-                hiFuzz.setCutOff( param );
+                hiFuzz.setInputLevel( hiLevel );
+                hiFuzz.setThreshold( hiDrive );
+                hiFuzz.setCutOff( hiParam );
                 break;
 
             case Parameters::DistortionType::WaveFolder:
-                hiWaveFolder.setLevel( level );
-                hiWaveFolder.setDrive( drive );
-                hiWaveFolder.setThreshold( param );
+                hiWaveFolder.setLevel( hiLevel );
+                hiWaveFolder.setDrive( hiDrive );
+                hiWaveFolder.setThreshold( hiParam );
                 // hiWaveFolder.setThresholdNegative( param );
                 break;
 
             case Parameters::DistortionType::WaveShaper:
-                hiWaveShaper.setOutputLevel( level );
-                hiWaveShaper.setAmount( drive );
-                hiWaveShaper.setShape( param );
+                hiWaveShaper.setOutputLevel( hiLevel );
+                hiWaveShaper.setAmount( hiDrive );
+                hiWaveShaper.setShape( hiParam );
                 break;
         }
     }

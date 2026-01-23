@@ -69,7 +69,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         juce::AudioProcessorValueTreeState parameters;
         ParameterListener parameterListener;
         void updateParameters() override;
-        void applyParameters( int bufferSize );
+        void applyParameters( int samplesToAdvance );
 
         static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         {
@@ -169,8 +169,8 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         std::vector<float> loBuffer;
         std::vector<float> hiBuffer;
 
-        // parameter smoothing (prevent glitches)
-        
+        // parameter smoothing (prevents glitches while adjusting in realtime)
+
         static constexpr float PARAM_RAMP_TIME = 0.2f;
         
         Smoother splitFreqSmoothed;

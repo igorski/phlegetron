@@ -168,10 +168,10 @@ void AudioPluginAudioProcessor::updateParameters()
     hiParamSmoothed.set( *hiDistParam );
 }
 
-void AudioPluginAudioProcessor::applyParameters( int bufferSize )
+void AudioPluginAudioProcessor::applyParameters( int samplesToAdvance )
 {
     if ( !splitFreqSmoothed.isDone() ) {
-        const float baseFreq = splitFreqSmoothed.peek( bufferSize );
+        const float baseFreq = splitFreqSmoothed.peek( samplesToAdvance );
 
         for ( int channel = 0; channel < MAX_CHANNELS; ++channel ) {
             loPass[ channel ].setCutoffFrequency( baseFreq );
@@ -183,9 +183,9 @@ void AudioPluginAudioProcessor::applyParameters( int bufferSize )
 
     if ( updateLoDistortion )
     {
-        const float level = loLevelSmoothed.peek( bufferSize );
-        const float drive = loDriveSmoothed.peek( bufferSize );
-        const float param = loParamSmoothed.peek( bufferSize );
+        const float level = loLevelSmoothed.peek( samplesToAdvance );
+        const float drive = loDriveSmoothed.peek( samplesToAdvance );
+        const float param = loParamSmoothed.peek( samplesToAdvance );
 
         switch ( loDistType )
         {
@@ -223,9 +223,9 @@ void AudioPluginAudioProcessor::applyParameters( int bufferSize )
 
     if ( updateHiDistortion )
     {
-        const float level = hiLevelSmoothed.peek( bufferSize );
-        const float drive = hiDriveSmoothed.peek( bufferSize );
-        const float param = hiParamSmoothed.peek( bufferSize );
+        const float level = hiLevelSmoothed.peek( samplesToAdvance );
+        const float drive = hiDriveSmoothed.peek( samplesToAdvance );
+        const float param = hiParamSmoothed.peek( samplesToAdvance );
 
         switch ( hiDistType )
         {

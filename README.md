@@ -7,7 +7,7 @@ on what takes your fancy.
 
 Phlegetron was built using the [JUCE framework](https://github.com/juce-framework/JUCE).
 
-## The [Issue Tracker](https://github.com/igorski/distortion/issues) is your point of contact
+## The [Issue Tracker](https://github.com/igorski/phlegetron/issues) is your point of contact
 
 Bug reports, feature requests, questions and discussions are welcome on the GitHub Issue Tracker, please do not send e-mails through the development website. However, please search before posting to avoid duplicates, and limit to one issue per post.
 

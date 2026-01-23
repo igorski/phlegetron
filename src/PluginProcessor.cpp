@@ -165,9 +165,11 @@ void AudioPluginAudioProcessor::updateParameters()
             break;
 
         case Parameters::DistortionType::BitCrusher:
-            loBitCrusher.setLevel( *loDistInputLevel );
-            loBitCrusher.setDownsampling( *loDistDrive );
-            loBitCrusher.setAmount( *loDistParam );
+            for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
+                loBitCrusher[ channel ].setLevel( *loDistInputLevel );
+                loBitCrusher[ channel ].setDownsampling( *loDistDrive );
+                loBitCrusher[ channel ].setAmount( *loDistParam );
+            }
             break;
 
         case Parameters::DistortionType::Fuzz:
@@ -196,9 +198,11 @@ void AudioPluginAudioProcessor::updateParameters()
             break;
             
         case Parameters::DistortionType::BitCrusher:
-            hiBitCrusher.setLevel( *hiDistInputLevel );
-            hiBitCrusher.setDownsampling( *hiDistDrive );
-            hiBitCrusher.setAmount( *hiDistParam );
+            for ( size_t channel = 0; channel < MAX_CHANNELS; ++channel ) {
+                hiBitCrusher[ channel ].setLevel( *hiDistInputLevel );
+                hiBitCrusher[ channel ].setDownsampling( *hiDistDrive );
+                hiBitCrusher[ channel ].setAmount( *hiDistParam );
+            }
             break;
 
         case Parameters::DistortionType::Fuzz:
@@ -342,7 +346,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
             // ...distort
 
-            applyDistortion( lo, hi, uBufferSize, uBufferSize );
+            applyDistortion( channel, lo, hi, uBufferSize, uBufferSize );
 
             // ...and apply make-up gain to keep large volume jumps in check
 
@@ -388,7 +392,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
                 // distort
 
-                applyDistortion( specA.data(), specB.data(), specA.size(), specB.size() );
+                applyDistortion( channel, specA.data(), specB.data(), specA.size(), specB.size() );
 
                 // sum and apply window (windowing ensures overlap-add works correctly)
 

@@ -176,10 +176,11 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
             filter.setType( type );
         }
 
-        // effects modules
+        // distortion modules, most are stateless w/regards to past inputs and can
+        // be reused across channels, with exception of BitCrusher
 
-        BitCrusher loBitCrusher;
-        BitCrusher hiBitCrusher;
+        BitCrusher loBitCrusher[ MAX_CHANNELS ];
+        BitCrusher hiBitCrusher[ MAX_CHANNELS ];
         Fuzz loFuzz;
         Fuzz hiFuzz;
         WaveFolder loWaveFolder;
@@ -230,7 +231,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         std::atomic<float>* hiDistParam;
         
         inline void applyDistortion(
-            float* loChannelData, float* hiChannelData,
+            const int channel, float* loChannelData, float* hiChannelData,
             const unsigned long loChannelSize, const unsigned long hiChannelSize
         ) {
             // distortions aren't stateful, when jointProcessing is true, we apply
@@ -244,9 +245,9 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
                     break;
                 
                 case Parameters::DistortionType::BitCrusher:
-                    loBitCrusher.apply( loChannelData, loChannelSize );
+                    loBitCrusher[ channel ].apply( loChannelData, loChannelSize );
                     if ( jointProcessing ) {
-                        loBitCrusher.apply( hiChannelData, hiChannelSize );
+                        loBitCrusher[ channel ].apply( hiChannelData, hiChannelSize );
                     }
                     break;
                 
@@ -282,7 +283,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
                     break;
 
                 case Parameters::DistortionType::BitCrusher:
-                    hiBitCrusher.apply( hiChannelData, hiChannelSize );
+                    hiBitCrusher[ channel ].apply( hiChannelData, hiChannelSize );
                     break;
 
                 case Parameters::DistortionType::Fuzz:

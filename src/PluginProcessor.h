@@ -69,7 +69,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         juce::AudioProcessorValueTreeState parameters;
         ParameterListener parameterListener;
         void updateParameters() override;
-        void applyParameters( int samplesToAdvance );
+        void applyParameters( int samplesToAdvance, bool forceApply );
 
         static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         {

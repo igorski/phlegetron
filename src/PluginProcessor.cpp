@@ -149,16 +149,24 @@ void AudioPluginAudioProcessor::changeProgramName( int index, const juce::String
 
 void AudioPluginAudioProcessor::updateParameters()
 {
+    bool forceApply = false;
+
     splitMode = static_cast<Parameters::SplitMode>(
         parameters.getRawParameterValue( Parameters::SPLIT_MODE )->load()
     );
-    loDistType = static_cast<Parameters::DistortionType>(
+    auto newLoDistType = static_cast<Parameters::DistortionType>(
         parameters.getRawParameterValue( Parameters::LO_DIST_TYPE )->load()
     );
-    hiDistType = static_cast<Parameters::DistortionType>(
+    auto newHiDistType = static_cast<Parameters::DistortionType>(
         parameters.getRawParameterValue( Parameters::HI_DIST_TYPE )->load()
     );
 
+    if ( newLoDistType != loDistType || newHiDistType != hiDistType ) {
+        loDistType = newLoDistType;
+        hiDistType = newHiDistType;
+
+        forceApply = true;
+    }
     splitFreqSmoothed.set( *splitFreq );
     loLevelSmoothed.set( *loDistInputLevel );
     loDriveSmoothed.set( *loDistDrive );
@@ -166,9 +174,11 @@ void AudioPluginAudioProcessor::updateParameters()
     hiLevelSmoothed.set( *hiDistInputLevel );
     hiDriveSmoothed.set( *hiDistDrive );
     hiParamSmoothed.set( *hiDistParam );
+
+    applyParameters( 0, forceApply );
 }
 
-void AudioPluginAudioProcessor::applyParameters( int samplesToAdvance )
+void AudioPluginAudioProcessor::applyParameters( int samplesToAdvance, bool force )
 {
     if ( !splitFreqSmoothed.isDone() ) {
         const float baseFreq = splitFreqSmoothed.peek( samplesToAdvance );
@@ -178,8 +188,8 @@ void AudioPluginAudioProcessor::applyParameters( int samplesToAdvance )
             hiPass[ channel ].setCutoffFrequency( baseFreq );
         }
     }
-    bool updateLoDistortion = !loLevelSmoothed.isDone() || !loDriveSmoothed.isDone() || !loParamSmoothed.isDone();
-    bool updateHiDistortion = !hiLevelSmoothed.isDone() || !hiDriveSmoothed.isDone() || !hiParamSmoothed.isDone();
+    bool updateLoDistortion = force || !loLevelSmoothed.isDone() || !loDriveSmoothed.isDone() || !loParamSmoothed.isDone();
+    bool updateHiDistortion = force || !hiLevelSmoothed.isDone() || !hiDriveSmoothed.isDone() || !hiParamSmoothed.isDone();
 
     if ( updateLoDistortion )
     {
@@ -210,7 +220,7 @@ void AudioPluginAudioProcessor::applyParameters( int samplesToAdvance )
                 loWaveFolder.setLevel( loLevel );
                 loWaveFolder.setDrive( loDrive );
                 loWaveFolder.setThreshold( loParam );
-                // loWaveFolder.setThresholdNegative( param );
+                // loWaveFolder.setThresholdNegative( loParam );
                 break;
 
             case Parameters::DistortionType::WaveShaper:
@@ -250,7 +260,7 @@ void AudioPluginAudioProcessor::applyParameters( int samplesToAdvance )
                 hiWaveFolder.setLevel( hiLevel );
                 hiWaveFolder.setDrive( hiDrive );
                 hiWaveFolder.setThreshold( hiParam );
-                // hiWaveFolder.setThresholdNegative( param );
+                // hiWaveFolder.setThresholdNegative( hiParam );
                 break;
 
             case Parameters::DistortionType::WaveShaper:
@@ -266,6 +276,9 @@ void AudioPluginAudioProcessor::applyParameters( int samplesToAdvance )
 
 void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPerBlock )
 {
+    // dispose previously allocated resources
+    releaseResources();
+
     fft.update( sampleRate );
 
     splitFreqSmoothed.init( sampleRate, PARAM_RAMP_TIME_SECONDS, *splitFreq );
@@ -308,9 +321,6 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
     loPre.resize(( size_t ) samplesPerBlock );
     hiPre.resize(( size_t ) samplesPerBlock );
     inBuffer.resize(( size_t ) samplesPerBlock );
-
-    // dispose previously allocated resources
-    releaseResources();
     
     // align values with model
     updateParameters();
@@ -334,14 +344,15 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
     // prepare gain staging
 
-    float dryMix  = 1.f - *dryWetMix;
-    float wetMix  = *dryWetMix;
+    float dryMix = 1.f - *dryWetMix;
+    float wetMix = *dryWetMix;
     bool blendDry = dryMix > 0.f;
-    bool needsFiltering = loDistType == Parameters::DistortionType::WaveFolder || ( !ParameterUtilities::floatToBool( *linkEnabled ) && hiDistType == Parameters::DistortionType::WaveFolder );
+    bool needsFiltering = loDistType == Parameters::DistortionType::WaveFolder ||
+        ( !ParameterUtilities::floatToBool( *linkEnabled ) && hiDistType == Parameters::DistortionType::WaveFolder );
     
     // update module properties with smoothed changes to prevent crackling
 
-    applyParameters( bufferSize );
+    applyParameters( bufferSize, false );
 
     // per channel processing
 

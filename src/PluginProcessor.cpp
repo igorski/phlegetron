@@ -243,8 +243,7 @@ void AudioPluginAudioProcessor::prepareToPlay( double sampleRate, int samplesPer
         loMakeup[ channel ].prepare( sampleRate );
         hiMakeup[ channel ].prepare( sampleRate );
 
-        loDcFilters[ channel ].init( sampleRate );
-        hiDcFilters[ channel ].init( sampleRate );
+        dcFilters[ channel ].init( sampleRate );
         
         loPass[ channel ].prepare( spec );
         hiPass[ channel ].prepare( spec );
@@ -288,13 +287,14 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
     int channelAmount = buffer.getNumChannels();
     int bufferSize = buffer.getNumSamples();
     auto uBufferSize = static_cast<unsigned long>( bufferSize );
-    
+
     // prepare gain staging
 
     float dryMix  = 1.f - *dryWetMix;
     float wetMix  = *dryWetMix;
     bool blendDry = dryMix > 0.f;
-
+    bool needsFiltering = loDistType == Parameters::DistortionType::WaveFolder || ( !ParameterUtilities::floatToBool( *linkEnabled ) && hiDistType == Parameters::DistortionType::WaveFolder );
+    
     // update filters with smoothed frequency changes to prevent crackling
 
     const float baseFreq = splitFreqSmoothed.getNextValue();
@@ -314,7 +314,8 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
         }
 
         int channelNum = channel % MAX_CHANNELS; // keep in range of modules allocated to MAX_CHANNELS
-
+        auto* channelData = buffer.getWritePointer( channel );
+            
         // process mode 1: EQ based split
 
         if ( splitMode == Parameters::SplitMode::EQ ) {
@@ -341,7 +342,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
             // ...distort
 
-            applyDistortion( channel, lo, hi, uBufferSize, uBufferSize );
+            applyDistortion( lo, hi, uBufferSize, uBufferSize );
 
             // ...and apply make-up gain to keep large volume jumps in check
 
@@ -351,16 +352,15 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
             // write the effected buffer into the output
     
             for ( int i = 0; i < bufferSize; ++i ) {
-                auto dry = buffer.getSample( channel, i ) * dryMix;
+                auto dry = channelData[ i ] * dryMix;
                 auto wet = ( lo[ i ] + hi[ i ]) * wetMix;
 
-                buffer.setSample( channel, i, MathUtilities::clamp( dry + wet ));
+                channelData[ i ] = MathUtilities::clamp( dry + wet );
             }
         }
         else {
             // process mode 2: harmonic bin splitting
 
-            auto* channelData  = buffer.getWritePointer( channel );
             auto& channelState = channelStates[ ( size_t ) channelNum ];
 
             std::memcpy( inBuffer.data(), channelData, sizeof( float ) * uBufferSize );
@@ -388,7 +388,7 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
 
                 // distort
 
-                applyDistortion( channel, specA.data(), specB.data(), specA.size(), specB.size() );
+                applyDistortion( specA.data(), specB.data(), specA.size(), specB.size() );
 
                 // sum and apply window (windowing ensures overlap-add works correctly)
 
@@ -422,6 +422,10 @@ void AudioPluginAudioProcessor::processBlock( juce::AudioBuffer<float>& buffer, 
                     channelData[ i ] += ( inBuffer[ i ] * dryMix );
                 }
             }
+        }
+        // certain processes can benefit from removing ultra- and infrasonic noise from the signal
+        if ( needsFiltering ) {
+            dcFilters[ channelNum ].apply( channelData, uBufferSize );
         }
     }
 }

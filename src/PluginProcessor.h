@@ -164,8 +164,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> splitFreqSmoothed;
         AutoMakeUpGain loMakeup[ MAX_CHANNELS ];
         AutoMakeUpGain hiMakeup[ MAX_CHANNELS ];
-        DCFilter loDcFilters[ MAX_CHANNELS ];
-        DCFilter hiDcFilters[ MAX_CHANNELS ];
+        DCFilter dcFilters[ MAX_CHANNELS ];
         std::vector<float> loBuffer;
         std::vector<float> hiBuffer;
         
@@ -231,7 +230,7 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
         std::atomic<float>* hiDistParam;
         
         inline void applyDistortion(
-            const int channelNum, float* loChannelData, float* hiChannelData,
+            float* loChannelData, float* hiChannelData,
             const unsigned long loChannelSize, const unsigned long hiChannelSize
         ) {
             // distortions aren't stateful, when jointProcessing is true, we apply
@@ -260,11 +259,8 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
                 case Parameters::DistortionType::WaveFolder:
                     loWaveFolder.apply( loChannelData, loChannelSize );
-                    loDcFilters[ channelNum ].apply( loChannelData, loChannelSize ); // remove inaudible noise from folded signal
-
                     if ( jointProcessing ) {
                         loWaveFolder.apply( hiChannelData, hiChannelSize );
-                        hiDcFilters[ channelNum ].apply( hiChannelData, hiChannelSize ); // yes, hiDcFilters!
                     }
                     break;
 
@@ -295,7 +291,6 @@ class AudioPluginAudioProcessor final : public juce::AudioProcessor, ParameterSu
 
                 case Parameters::DistortionType::WaveFolder:
                     hiWaveFolder.apply( hiChannelData, hiChannelSize );
-                    hiDcFilters[ channelNum ].apply( hiChannelData, hiChannelSize ); // remove inaudible noise from folded signal
                     break;
 
                 case Parameters::DistortionType::WaveShaper:

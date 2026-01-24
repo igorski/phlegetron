@@ -39,6 +39,7 @@ BitCrusher::~BitCrusher()
 void BitCrusher::apply( float* channelData, unsigned long bufferSize )
 {
     float wrapDrive = _crush * ( MAX_BITS - _bits) / ( MAX_BITS - 1 );
+    bool addNoise = _amount > NOISE_THRESHOLD;
 
     for ( size_t i = 0; i < bufferSize; ++i )
     {
@@ -51,11 +52,13 @@ void BitCrusher::apply( float* channelData, unsigned long bufferSize )
         {
             _sampleCounter = 0;
 
-            float noise = input + ( juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f ) * _noiseAmount;
-
+            if ( addNoise ) {
+                input += ( juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f ) * _noiseAmount;
+            }
+            
             // apply bit reduction
 
-            float scaled = noise * _levels;
+            float scaled = input * _levels;
             float crushed = std::floor( scaled ) / _levels;
 
             // apply wrap drive

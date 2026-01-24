@@ -22,6 +22,7 @@ class BitCrusher
 {
     static constexpr float MAX_BITS = 16.f;
     static constexpr float MIN_BITS = 1.f;
+    static constexpr float NOISE_THRESHOLD = 0.5f;
 
     public:
         BitCrusher();
